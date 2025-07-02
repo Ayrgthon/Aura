@@ -21,7 +21,7 @@ except ImportError as e:
     print("💡 Instala las dependencias con: pip install -r requirements.txt")
 
 class OllamaClient:
-    def __init__(self, host="localhost", port=11434, context_size=130000, enable_voice=True):
+    def __init__(self, host="localhost", port=11434, context_size=100000, enable_voice=True):
         """
         Inicializa el cliente de Ollama
         
@@ -126,11 +126,14 @@ class OllamaClient:
             prompt (str): El prompt/pregunta para el modelo
             stream (bool): Si True, transmite la respuesta en tiempo real
             use_history (bool): Si True, incluye el historial de conversación
-            voice_streaming (bool): Si True, activa TTS en paralelo con streaming
+            voice_streaming (bool): Si True, activa TTS en paralelo
             
         Returns:
             str: La respuesta del modelo
         """
+        if not prompt.strip():
+            return "Prompt vacío"
+            
         url = f"{self.base_url}/api/generate"
         
         # Construir el prompt con historial si está habilitado
@@ -139,14 +142,19 @@ class OllamaClient:
         else:
             full_prompt = prompt
         
+        # Configuración del modelo
         payload = {
             "model": self.model,
             "prompt": full_prompt,
             "stream": stream,
             "options": {
-                "num_ctx": self.context_size,  # Configurar contexto completo
+                "num_ctx": self.context_size,
                 "temperature": 0.7,
-                "top_p": 0.9
+                "top_p": 0.9,
+                "top_k": 40,
+                "num_predict": 128,
+                "stop": ["Usuario:", "Tú:", "Human:", "Assistant:"],
+                "repeat_penalty": 1.1
             }
         }
         
@@ -155,20 +163,39 @@ class OllamaClient:
                 response_text = self._stream_response(url, payload, voice_streaming)
             else:
                 response = requests.post(url, json=payload)
-                if response.status_code == 200:
-                    response_text = response.json().get('response', '')
-                else:
-                    return f"Error: {response.status_code} - {response.text}"
+                if response.status_code != 200:
+                    error_msg = f"Error: {response.status_code} - {response.text}"
+                    print(error_msg)
+                    return error_msg
+                    
+                try:
+                    data = response.json()
+                except json.JSONDecodeError as e:
+                    error_msg = f"Error decodificando respuesta: {e}"
+                    print(error_msg)
+                    return error_msg
+                    
+                if 'error' in data:
+                    error_msg = f"Error del modelo: {data['error']}"
+                    print(error_msg)
+                    return error_msg
+                    
+                response_text = data.get('response', '')
+                if not response_text.strip():
+                    print("⚠️ La respuesta del modelo está vacía")
+                    return "Sin respuesta"
             
-            # Agregar al historial si está habilitado
-            if use_history:
+            # Agregar al historial si está habilitado y hay respuesta válida
+            if use_history and response_text and response_text != "Sin respuesta":
                 self._add_to_history("user", prompt)
                 self._add_to_history("assistant", response_text)
             
             return response_text
             
         except requests.exceptions.RequestException as e:
-            return f"Error de conexión: {e}"
+            error_msg = f"Error de conexión: {e}"
+            print(error_msg)
+            return error_msg
     
     def _build_prompt_with_history(self, current_prompt):
         """
@@ -180,14 +207,22 @@ class OllamaClient:
         Returns:
             str: Prompt completo con historial
         """
-        history_text = ""
-        for entry in self.conversation_history:
-            if entry['role'] == 'user':
-                history_text += f"Usuario: {entry['content']}\n"
-            else:
-                history_text += f"Asistente: {entry['content']}\n"
+        # Limitar el número de mensajes en el historial para evitar sobrecargar el contexto
+        max_history_messages = 10  # Ajustar según necesidad
+        recent_history = self.conversation_history[-max_history_messages:] if len(self.conversation_history) > max_history_messages else self.conversation_history
         
-        return f"{history_text}Usuario: {current_prompt}\nAsistente:"
+        history_text = "A continuación hay una conversación entre un humano y un asistente de IA.\n\n"
+        
+        for entry in recent_history:
+            if entry['role'] == 'user':
+                history_text += f"Humano: {entry['content']}\n\n"
+            else:
+                history_text += f"Asistente: {entry['content']}\n\n"
+        
+        # Agregar el prompt actual
+        history_text += f"Humano: {current_prompt}\n\nAsistente:"
+        
+        return history_text
     
     def _add_to_history(self, role, content):
         """
@@ -255,55 +290,78 @@ class OllamaClient:
         """
         try:
             response = requests.post(url, json=payload, stream=True)
-            if response.status_code == 200:
-                full_response = ""
-                streaming_tts = None
-                
-                # Inicializar TTS streaming si está habilitado
-                if enable_voice_streaming and self.voice_enabled:
-                    try:
-                        streaming_tts = start_streaming_tts()
-                        print("🗣️ TTS en paralelo activado")
-                    except Exception as e:
-                        print(f"❌ Error al inicializar TTS streaming: {e}")
-                        streaming_tts = None
-                
-                print("Respuesta del modelo (streaming):")
+            if response.status_code != 200:
+                error_msg = f"Error: {response.status_code} - {response.text}"
+                print(error_msg)
+                return error_msg
+            
+            full_response = ""
+            streaming_tts = None
+            
+            # Inicializar TTS streaming si está habilitado
+            if enable_voice_streaming and self.voice_enabled:
                 try:
-                    for line in response.iter_lines():
-                        if line:
-                            data = json.loads(line.decode('utf-8'))
-                            if 'response' in data:
-                                chunk = data['response']
-                                print(chunk, end='', flush=True)
-                                full_response += chunk
-                                
-                                # Enviar chunk al TTS en paralelo
-                                if streaming_tts:
-                                    try:
-                                        add_text_to_stream(chunk)
-                                    except Exception as e:
-                                        print(f"\n❌ Error en TTS chunk: {e}")
-                                        
-                            if data.get('done', False):
-                                break
+                    streaming_tts = start_streaming_tts()
+                    print("🗣️ TTS en paralelo activado")
                 except Exception as e:
-                    print(f"❌ Error procesando respuesta streaming: {e}")
-                    return f"Error en streaming: {e}"
-                
-                # Finalizar TTS streaming
-                if streaming_tts:
+                    print(f"❌ Error al inicializar TTS streaming: {e}")
+                    streaming_tts = None
+            
+            print("Respuesta del modelo (streaming):")
+            try:
+                for line in response.iter_lines():
+                    if not line:
+                        continue
+                        
                     try:
-                        finish_streaming_tts()
-                    except Exception as e:
-                        print(f"\n❌ Error al finalizar TTS streaming: {e}")
+                        data = json.loads(line.decode('utf-8'))
+                    except json.JSONDecodeError as e:
+                        print(f"\n❌ Error decodificando respuesta: {e}")
+                        continue
+                    
+                    if 'error' in data:
+                        error_msg = f"\n❌ Error del modelo: {data['error']}"
+                        print(error_msg)
+                        return error_msg
+                    
+                    if 'response' in data:
+                        chunk = data['response']
+                        if chunk:  # Solo procesar si hay contenido
+                            print(chunk, end='', flush=True)
+                            full_response += chunk
+                            
+                            # Enviar chunk al TTS en paralelo
+                            if streaming_tts:
+                                try:
+                                    add_text_to_stream(chunk)
+                                except Exception as e:
+                                    print(f"\n❌ Error en TTS chunk: {e}")
+                    
+                    if data.get('done', False):
+                        break
+                        
+            except Exception as e:
+                print(f"\n❌ Error procesando respuesta streaming: {e}")
+                return f"Error en streaming: {e}"
+            
+            # Finalizar TTS streaming
+            if streaming_tts:
+                try:
+                    finish_streaming_tts()
+                except Exception as e:
+                    print(f"\n❌ Error al finalizar TTS streaming: {e}")
+            
+            if not full_response.strip():
+                print("\n⚠️ La respuesta del modelo está vacía")
+                return "Sin respuesta"
                 
-                print()  # Nueva línea al final
-                return full_response
-            else:
-                return f"Error: {response.status_code} - {response.text}"
+            print()  # Nueva línea al final
+            return full_response
+            
         except requests.exceptions.RequestException as e:
-            return f"Error de conexión: {e}"
+            error_msg = f"Error de conexión: {e}"
+            print(error_msg)
+            return error_msg
     
     def chat(self):
         """
