@@ -7,9 +7,14 @@ import os
 # Importar módulos de voz
 try:
     from engine.voice.hear import initialize_recognizer, listen_for_command
-    from engine.voice.speak import speak, stop_speaking, is_speaking
+    from engine.voice.speak import (
+        speak, stop_speaking, is_speaking,
+        start_streaming_tts, add_text_to_stream, finish_streaming_tts
+    )
     VOICE_AVAILABLE = True
     print("✅ Módulos de voz cargados correctamente")
+    print("🔧 Funciones streaming TTS importadas:", 
+          start_streaming_tts.__name__, add_text_to_stream.__name__, finish_streaming_tts.__name__)
 except ImportError as e:
     VOICE_AVAILABLE = False
     print(f"⚠️ Módulos de voz no disponibles: {e}")
@@ -113,7 +118,7 @@ class OllamaClient:
             print(f"Error de conexión: {e}")
             return []
     
-    def generate_response(self, prompt, stream=False, use_history=True):
+    def generate_response(self, prompt, stream=False, use_history=True, voice_streaming=False):
         """
         Genera una respuesta usando el modelo especificado
         
@@ -121,6 +126,7 @@ class OllamaClient:
             prompt (str): El prompt/pregunta para el modelo
             stream (bool): Si True, transmite la respuesta en tiempo real
             use_history (bool): Si True, incluye el historial de conversación
+            voice_streaming (bool): Si True, activa TTS en paralelo con streaming
             
         Returns:
             str: La respuesta del modelo
@@ -146,7 +152,7 @@ class OllamaClient:
         
         try:
             if stream:
-                response_text = self._stream_response(url, payload)
+                response_text = self._stream_response(url, payload, voice_streaming)
             else:
                 response = requests.post(url, json=payload)
                 if response.status_code == 200:
@@ -235,13 +241,14 @@ class OllamaClient:
             usage_percent = (estimated_tokens / self.context_size) * 100
             print(f"   • Uso del contexto: {usage_percent:.1f}%")
     
-    def _stream_response(self, url, payload):
+    def _stream_response(self, url, payload, enable_voice_streaming=False):
         """
         Maneja las respuestas en streaming
         
         Args:
             url (str): URL del endpoint
             payload (dict): Datos a enviar
+            enable_voice_streaming (bool): Si True, activa TTS en paralelo
             
         Returns:
             str: Respuesta completa
@@ -250,15 +257,47 @@ class OllamaClient:
             response = requests.post(url, json=payload, stream=True)
             if response.status_code == 200:
                 full_response = ""
+                streaming_tts = None
+                
+                # Inicializar TTS streaming si está habilitado
+                if enable_voice_streaming and self.voice_enabled:
+                    try:
+                        streaming_tts = start_streaming_tts()
+                        print("🗣️ TTS en paralelo activado")
+                    except Exception as e:
+                        print(f"❌ Error al inicializar TTS streaming: {e}")
+                        streaming_tts = None
+                
                 print("Respuesta del modelo (streaming):")
-                for line in response.iter_lines():
-                    if line:
-                        data = json.loads(line.decode('utf-8'))
-                        if 'response' in data:
-                            print(data['response'], end='', flush=True)
-                            full_response += data['response']
-                        if data.get('done', False):
-                            break
+                try:
+                    for line in response.iter_lines():
+                        if line:
+                            data = json.loads(line.decode('utf-8'))
+                            if 'response' in data:
+                                chunk = data['response']
+                                print(chunk, end='', flush=True)
+                                full_response += chunk
+                                
+                                # Enviar chunk al TTS en paralelo
+                                if streaming_tts:
+                                    try:
+                                        add_text_to_stream(chunk)
+                                    except Exception as e:
+                                        print(f"\n❌ Error en TTS chunk: {e}")
+                                        
+                            if data.get('done', False):
+                                break
+                except Exception as e:
+                    print(f"❌ Error procesando respuesta streaming: {e}")
+                    return f"Error en streaming: {e}"
+                
+                # Finalizar TTS streaming
+                if streaming_tts:
+                    try:
+                        finish_streaming_tts()
+                    except Exception as e:
+                        print(f"\n❌ Error al finalizar TTS streaming: {e}")
+                
                 print()  # Nueva línea al final
                 return full_response
             else:
@@ -289,11 +328,13 @@ class OllamaClient:
         if self.voice_enabled:
             print("  • 'escuchar' - Activar entrada por voz")
             print("  • 'voz' - Alternar respuestas por voz")
+            print("  • 'voz-streaming' - TTS en paralelo (recomendado)")
         
         print("-" * 60)
         
         use_stream = True  # Streaming activado por defecto
         use_voice_output = False  # Respuestas por voz
+        use_voice_streaming = False  # TTS en paralelo
         
         while True:
             try:
@@ -336,6 +377,18 @@ class OllamaClient:
                     use_voice_output = not use_voice_output
                     status = "🗣️ ACTIVADA" if use_voice_output else "🔇 DESACTIVADA"
                     print(f"✅ Respuesta por voz: {status}")
+                    if use_voice_output:
+                        print("💡 Usa 'voz-streaming' para TTS en paralelo (más fluido)")
+                    continue
+                
+                if self.voice_enabled and user_input.lower() in ['voz-streaming', 'voice-streaming']:
+                    use_voice_streaming = not use_voice_streaming
+                    if use_voice_streaming:
+                        use_voice_output = True  # Activar voz automáticamente
+                        status = "🎬🗣️ ACTIVADO (TTS en paralelo)"
+                    else:
+                        status = "⏸️ DESACTIVADO"
+                    print(f"✅ TTS Streaming: {status}")
                     continue
                 
                 if not user_input:
@@ -343,15 +396,27 @@ class OllamaClient:
                 
                 print(f"\n🤖 {self.model}:", end=" ")
                 if use_stream:
-                    response = self.generate_response(user_input, stream=True)
+                    # Si el streaming de voz está activado, no reproducir después
+                    voice_after_stream = use_voice_output and not use_voice_streaming
+                    response = self.generate_response(
+                        user_input, 
+                        stream=True, 
+                        voice_streaming=use_voice_streaming
+                    )
+                    
+                    # Solo reproducir voz después si no fue streaming
+                    if voice_after_stream and response:
+                        print("🗣️ Reproduciendo respuesta completa...")
+                        self.speak_response(response)
+                        
                 else:
                     response = self.generate_response(user_input, stream=False)
                     print(response)
-                
-                # Síntesis de voz si está activada
-                if use_voice_output and response and self.voice_enabled:
-                    print("🗣️ Reproduciendo respuesta...")
-                    self.speak_response(response)
+                    
+                    # Síntesis de voz si está activada (modo no-stream)
+                    if use_voice_output and response and self.voice_enabled:
+                        print("🗣️ Reproduciendo respuesta...")
+                        self.speak_response(response)
                 
             except KeyboardInterrupt:
                 print("\n👋 ¡Hasta luego!")
@@ -375,51 +440,4 @@ class OllamaClient:
             content = entry['content'][:100] + "..." if len(entry['content']) > 100 else entry['content']
             print(f"{i}. {role_icon} {role_name}: {content}")
 
-def main():
-    """
-    Función principal del script
-    """
-    # Permitir configurar el contexto desde argumentos
-    context_size = 130000  # Máximo para gemma3:4b
-    
-    # Verificar si se debe deshabilitar la voz
-    disable_voice = '--no-voice' in sys.argv
-    if disable_voice:
-        sys.argv.remove('--no-voice')
-    
-    client = OllamaClient(context_size=context_size, enable_voice=not disable_voice)
-    
-    # Verificar si el servidor está ejecutándose
-    if not client.is_server_running():
-        print("❌ Error: El servidor de Ollama no está ejecutándose")
-        print("💡 Asegúrate de que Ollama esté iniciado con: ollama serve")
-        sys.exit(1)
-    
-    print("✅ Conectado al servidor de Ollama")
-    
-    # Listar modelos disponibles
-    models = client.list_models()
-    if models:
-        print(f"📋 Modelos disponibles: {', '.join(models)}")
-    
-    # Verificar si el modelo está disponible
-    if client.model not in models:
-        print(f"⚠️  Advertencia: El modelo '{client.model}' no se encuentra en la lista")
-        print(f"💡 Puedes descargarlo con: ollama pull {client.model}")
-    
-    # Mostrar información de contexto
-    client.show_context_info()
-    
-    # Modo de uso
-    if len(sys.argv) > 1:
-        # Modo prompt único con streaming por defecto
-        prompt = " ".join(sys.argv[1:])
-        print(f"🤖 Respuesta para: '{prompt}'")
-        print("🎬 Streaming activado:")
-        client.generate_response(prompt, stream=True)
-    else:
-        # Modo chat interactivo
-        client.chat()
-
-if __name__ == "__main__":
-    main() 
+ 
