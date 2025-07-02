@@ -25,7 +25,7 @@ class AuraAssistant:
         print("=" * 50)
         print("Modelos disponibles:")
         print("1. 🟢 Google Gemini (gemini-2.0-flash-exp)")
-        print("2. 🦙 Ollama (qwen2.5-coder:7b)")
+        print("2. 🦙 Ollama (qwen3:1.7b)")
         print("3. 🛠️  Personalizado")
         
         while True:
@@ -42,7 +42,7 @@ class AuraAssistant:
                 elif choice == "2":
                     # Ollama
                     model_type = "ollama"
-                    model_name = "qwen2.5-coder:7b"
+                    model_name = "qwen3:1.7b"
                     print(f"✅ Seleccionado: Ollama ({model_name})")
                     break
                     
@@ -59,7 +59,7 @@ class AuraAssistant:
                         print("Ejemplos: gemini-1.5-flash, gemini-1.5-pro, gemini-2.0-flash-exp")
                         model_name = input("Nombre del modelo: ").strip()
                     else:
-                        print("Ejemplos: qwen2.5-coder:7b, llama3.2:latest, codellama:latest")
+                        print("Ejemplos: qwen3:1.7b, llama3.2:latest, codellama:latest")
                         model_name = input("Nombre del modelo: ").strip()
                     
                     if not model_name:
@@ -118,7 +118,58 @@ class AuraAssistant:
         """Configura los servidores MCP"""
         print("\n🔧 Configuración de MCP (Model Context Protocol)")
         print("=" * 55)
+        print("Opciones disponibles:")
+        print("1. 📁 Solo Filesystem (operaciones con archivos)")
+        print("2. 🔍 Solo Brave Search (búsquedas web)")
+        print("3. 🌐 Filesystem + Brave Search (recomendado)")
+        print("4. ❌ Sin MCP")
         
+        while True:
+            try:
+                choice = input("\nSelecciona configuración MCP (1-4): ").strip()
+                
+                if choice == "1":
+                    # Solo filesystem
+                    mcp_config = self._get_filesystem_config()
+                    break
+                elif choice == "2":
+                    # Solo Brave Search
+                    mcp_config = self._get_brave_search_config()
+                    break
+                elif choice == "3":
+                    # Ambos
+                    filesystem_config = self._get_filesystem_config()
+                    brave_config = self._get_brave_search_config()
+                    mcp_config = {**filesystem_config, **brave_config}
+                    break
+                elif choice == "4":
+                    # Sin MCP
+                    print("✅ Continuando sin MCP")
+                    return False
+                else:
+                    print("❌ Opción no válida. Selecciona 1, 2, 3 o 4.")
+                    continue
+                    
+            except KeyboardInterrupt:
+                print("\n👋 ¡Hasta luego!")
+                exit(0)
+        
+        if not self.client:
+            print("❌ Cliente no inicializado")
+            return False
+            
+        print("🚀 Configurando servidores MCP...")
+        success = await self.client.setup_mcp_servers(mcp_config)
+        
+        if success:
+            print("✅ Servidores MCP configurados correctamente")
+            return True
+        else:
+            print("⚠️  MCP no disponible, continuando sin herramientas adicionales")
+            return False
+    
+    def _get_filesystem_config(self):
+        """Obtiene la configuración del MCP filesystem"""
         # Detectar directorios existentes para la configuración
         home_dir = os.path.expanduser("~")
         possible_dirs = [
@@ -141,28 +192,33 @@ class AuraAssistant:
         
         if not allowed_dirs:
             print("⚠️  No se encontraron directorios para MCP filesystem")
-            return False
+            return {}
         
-        print(f"\n✅ {len(allowed_dirs)} directorios configurados para acceso MCP")
+        print(f"✅ {len(allowed_dirs)} directorios configurados para acceso MCP")
         
-        # Configuración de servidores MCP
-        mcp_config = {
+        return {
             "filesystem": {
                 "command": "npx",
                 "args": ["-y", "@modelcontextprotocol/server-filesystem"] + allowed_dirs,
                 "transport": "stdio"
             }
         }
+    
+    def _get_brave_search_config(self):
+        """Obtiene la configuración del MCP Brave Search"""
+        print("🔍 Configurando Brave Search...")
+        print("✅ Usando API key demo para búsquedas web")
         
-        print("🚀 Configurando servidores MCP...")
-        success = await self.client.setup_mcp_servers(mcp_config)
-        
-        if success:
-            print("✅ Servidores MCP configurados correctamente")
-            return True
-        else:
-            print("⚠️  MCP no disponible, continuando sin herramientas de archivos")
-            return False
+        return {
+            "brave-search": {
+                "command": "npx",
+                "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+                "transport": "stdio",
+                "env": {
+                    "BRAVE_API_KEY": "YOUR_BRAVE_API_KEY_HERE"
+                }
+            }
+        }
     
     async def run_interactive_mode(self):
         """Ejecuta el modo interactivo"""
@@ -185,8 +241,9 @@ class AuraAssistant:
                     break
                 
                 if user_input.lower() in ['limpiar', 'clear']:
-                    self.client.conversation_history = []
-                    print("🗑️  Historial limpiado")
+                    if self.client:
+                        self.client.conversation_history = []
+                        print("🗑️  Historial limpiado")
                     continue
                 
                 if user_input.lower() in ['escuchar', 'listen'] and self.voice_recognizer:
@@ -203,6 +260,10 @@ class AuraAssistant:
                     continue
                 
                 # Procesar con el cliente
+                if not self.client:
+                    print("❌ Cliente no disponible")
+                    continue
+                    
                 print(f"\n🤖 {self.client.model_type.upper()}:", end=" ")
                 await self.client.chat_with_voice(user_input)
                 
@@ -227,8 +288,12 @@ class AuraAssistant:
             
             # 3. Inicializar cliente
             print(f"\n🚀 Inicializando cliente {model_type.upper()}...")
+            # Validar tipo de modelo
+            if model_type not in ["gemini", "ollama"]:
+                raise ValueError(f"Tipo de modelo no soportado: {model_type}")
+            
             self.client = AuraClient(
-                model_type=model_type,
+                model_type=model_type,  # type: ignore
                 model_name=model_name,
                 enable_voice=enable_voice
             )

@@ -14,6 +14,7 @@
 - [Características Avanzadas](#características-avanzadas)
 - [Detalles Técnicos de Implementación](#detalles-técnicos-de-implementación)
 - [Resolución de Problemas](#resolución-de-problemas)
+- [Integración con Brave Search MCP](#integración-con-brave-search-mcp)
 
 ## 🌟 Introducción
 
@@ -847,5 +848,49 @@ MIT License - ve el archivo LICENSE para más detalles.
 - [Servidores MCP Disponibles](https://github.com/modelcontextprotocol/servers)
 - [LangChain MCP Adapters](https://github.com/langchain-ai/langchain-mcp-adapters)
 - [Google Gemini API](https://ai.google.dev/)
+
+**¡Disfruta usando Aura con el poder de MCP! 🌟**
+
+## 🔍 Integración con Brave Search MCP
+
+Aura ahora incluye integración con **Model Context Protocol (MCP)** y específicamente con **Brave Search**, permitiendo búsquedas web en tiempo real durante las conversaciones.
+
+### Funcionalidades de Brave Search
+
+- 🌐 **Búsquedas web generales**: Noticias, artículos, información actualizada
+- 🏪 **Búsquedas locales**: Negocios, restaurantes, lugares cercanos
+- 📊 **Hasta 20 resultados** por búsqueda con soporte para paginación
+- 🔄 **Filtros de frescura** y contenido
+- 🚀 **Integración automática** con IA
+
+### Configuración MCP Disponible
+
+Cuando ejecutes `python main.py`, tendrás estas opciones:
+
+1. **📁 Solo Filesystem** - Operaciones con archivos locales
+2. **🔍 Solo Brave Search** - Búsquedas web en tiempo real
+3. **🌐 Filesystem + Brave Search** - ¡Recomendado! Ambas funcionalidades
+4. **❌ Sin MCP** - Modo básico sin herramientas adicionales
+
+### Ejemplo de Uso
+
+```bash
+python main.py
+# Selecciona modelo Gemini (opción 1)
+# Habilita voz (s)  
+# Selecciona "Filesystem + Brave Search" (opción 3)
+
+# Ahora puedes hacer preguntas como:
+👤 Tú: ¿Cuáles son las últimas noticias sobre inteligencia artificial?
+🤖 GEMINI: [Busca automáticamente y responde con información actualizada]
+
+👤 Tú: Busca restaurantes japoneses cerca de Madrid
+🤖 GEMINI: [Utiliza búsqueda local para encontrar opciones]
+```
+
+### Modelos Recomendados
+
+- **🟢 Google Gemini** - Mejor para aprovechar las herramientas MCP
+- **🦙 Ollama (qwen3:1.7b)** - Opción local más ligera
 
 **¡Disfruta usando Aura con el poder de MCP! 🌟** 
