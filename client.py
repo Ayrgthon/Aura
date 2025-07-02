@@ -2,9 +2,21 @@
 import requests
 import json
 import sys
+import os
+
+# Importar módulos de voz
+try:
+    from engine.voice.hear import initialize_recognizer, listen_for_command
+    from engine.voice.speak import speak, stop_speaking, is_speaking
+    VOICE_AVAILABLE = True
+    print("✅ Módulos de voz cargados correctamente")
+except ImportError as e:
+    VOICE_AVAILABLE = False
+    print(f"⚠️ Módulos de voz no disponibles: {e}")
+    print("💡 Instala las dependencias con: pip install -r requirements.txt")
 
 class OllamaClient:
-    def __init__(self, host="localhost", port=11434, context_size=130000):
+    def __init__(self, host="localhost", port=11434, context_size=130000, enable_voice=True):
         """
         Inicializa el cliente de Ollama
         
@@ -12,12 +24,63 @@ class OllamaClient:
             host (str): Dirección del servidor de Ollama (por defecto localhost)
             port (int): Puerto del servidor de Ollama (por defecto 11434)
             context_size (int): Tamaño del contexto en tokens (por defecto 130000 para gemma3:4b)
+            enable_voice (bool): Si True, habilita funcionalidades de voz
         """
         self.base_url = f"http://{host}:{port}"
         self.model = "gemma3:4b"
         self.context_size = context_size
         self.conversation_history = []  # Para mantener historial como en terminal
+        
+        # Configuración de voz
+        self.voice_enabled = enable_voice and VOICE_AVAILABLE
+        self.voice_recognizer = None
+        
+        if self.voice_enabled:
+            self._initialize_voice()
     
+    def _initialize_voice(self):
+        """
+        Inicializa los componentes de voz
+        """
+        try:
+            self.voice_recognizer = initialize_recognizer()
+            if self.voice_recognizer:
+                print("🎤 Sistema de voz activado")
+            else:
+                print("❌ Error al inicializar reconocimiento de voz")
+                self.voice_enabled = False
+        except Exception as e:
+            print(f"❌ Error al inicializar voz: {e}")
+            self.voice_enabled = False
+    
+    def listen_to_voice(self, timeout=5):
+        """
+        Escucha entrada de voz del usuario
+        
+        Args:
+            timeout (int): Tiempo límite de escucha
+            
+        Returns:
+            str: Texto reconocido de la voz
+        """
+        if not self.voice_enabled or not self.voice_recognizer:
+            print("❌ Funcionalidad de voz no disponible")
+            return ""
+        
+        return listen_for_command(self.voice_recognizer, timeout)
+    
+    def speak_response(self, text):
+        """
+        Convierte respuesta a voz
+        
+        Args:
+            text (str): Texto a convertir en voz
+        """
+        if not self.voice_enabled:
+            return
+        
+        speak(text)
+
     def is_server_running(self):
         """
         Verifica si el servidor de Ollama está ejecutándose
@@ -210,15 +273,27 @@ class OllamaClient:
         print(f"🤖 Cliente de Ollama - Modelo: {self.model}")
         print(f"🧠 Contexto: {self.context_size:,} tokens (como en terminal)")
         print("🎬 Streaming: ACTIVADO por defecto")
+        
+        if self.voice_enabled:
+            print("🎤🗣️ Modo VOZ: ACTIVADO")
+        else:
+            print("⚠️ Modo voz: NO disponible")
+        
         print("Comandos disponibles:")
         print("  • 'salir' o 'exit' - Terminar sesión")
         print("  • 'stream' - Alternar modo streaming")
         print("  • 'historial' - Mostrar historial de conversación")
         print("  • 'limpiar' - Limpiar historial")
         print("  • 'info' - Mostrar información de contexto")
+        
+        if self.voice_enabled:
+            print("  • 'escuchar' - Activar entrada por voz")
+            print("  • 'voz' - Alternar respuestas por voz")
+        
         print("-" * 60)
         
         use_stream = True  # Streaming activado por defecto
+        use_voice_output = False  # Respuestas por voz
         
         while True:
             try:
@@ -246,6 +321,23 @@ class OllamaClient:
                     self.show_context_info()
                     continue
                 
+                # Comandos de voz
+                if self.voice_enabled and user_input.lower() in ['escuchar', 'listen']:
+                    print("🎤 Modo escucha activado...")
+                    voice_text = self.listen_to_voice()
+                    if voice_text:
+                        user_input = voice_text
+                        print(f"👤 Tú (por voz): {user_input}")
+                    else:
+                        print("🔇 No se detectó entrada de voz")
+                        continue
+                
+                if self.voice_enabled and user_input.lower() in ['voz', 'voice']:
+                    use_voice_output = not use_voice_output
+                    status = "🗣️ ACTIVADA" if use_voice_output else "🔇 DESACTIVADA"
+                    print(f"✅ Respuesta por voz: {status}")
+                    continue
+                
                 if not user_input:
                     continue
                 
@@ -255,6 +347,11 @@ class OllamaClient:
                 else:
                     response = self.generate_response(user_input, stream=False)
                     print(response)
+                
+                # Síntesis de voz si está activada
+                if use_voice_output and response and self.voice_enabled:
+                    print("🗣️ Reproduciendo respuesta...")
+                    self.speak_response(response)
                 
             except KeyboardInterrupt:
                 print("\n👋 ¡Hasta luego!")
@@ -285,7 +382,12 @@ def main():
     # Permitir configurar el contexto desde argumentos
     context_size = 130000  # Máximo para gemma3:4b
     
-    client = OllamaClient(context_size=context_size)
+    # Verificar si se debe deshabilitar la voz
+    disable_voice = '--no-voice' in sys.argv
+    if disable_voice:
+        sys.argv.remove('--no-voice')
+    
+    client = OllamaClient(context_size=context_size, enable_voice=not disable_voice)
     
     # Verificar si el servidor está ejecutándose
     if not client.is_server_running():

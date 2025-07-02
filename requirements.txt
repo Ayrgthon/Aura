@@ -1,0 +1,13 @@
+# Dependencias para cliente Ollama
+requests>=2.31.0
+
+# Dependencias para reconocimiento de voz (STT)
+sounddevice>=0.4.6
+vosk>=0.3.45
+
+# Dependencias para síntesis de voz (TTS)
+gtts>=2.4.0
+pygame>=2.5.2
+
+# Utilidades adicionales
+numpy>=1.24.0 
