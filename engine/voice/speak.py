@@ -2,6 +2,7 @@
 """
 Módulo de síntesis de voz (Text to Speech)
 Utiliza gTTS y pygame para convertir texto a voz en español
+Versión optimizada para evitar cortes y delays
 """
 
 import os
@@ -9,8 +10,9 @@ import tempfile
 import threading
 import queue
 import time as time_module
+import atexit
 from gtts import gTTS
-from pygame import mixer, time
+from pygame import mixer
 
 class StreamingTTS:
     def __init__(self):
@@ -45,8 +47,11 @@ class StreamingTTS:
         Indica que no hay más texto y espera a que termine
         """
         self.text_queue.put(None)  # Señal de fin
+        
+        # Esperar a que el worker termine de procesar todo
         if self.worker_thread and self.worker_thread.is_alive():
-            self.worker_thread.join(timeout=10)
+            self.worker_thread.join(timeout=15)  # Aumentado el timeout
+            
         self.is_running = False
     
     def _tts_worker(self):
@@ -54,17 +59,17 @@ class StreamingTTS:
         Worker que procesa la cola de texto y reproduce audio secuencialmente
         """
         buffer = ""
-        sentence_endings = ['.', '!', '?', '\n', ':', ';']
+        sentence_endings = ['.', '!', '?']  # Solo finales de oración importantes
         word_count = 0
+        finish_signal_received = False
+        last_speech_time = time_module.time()  # Para forzar reproducción por tiempo
         
         while self.is_running:
             try:
                 text_chunk = self.text_queue.get(timeout=1)
                 
                 if text_chunk is None:  # Señal de fin
-                    # Reproducir texto restante en buffer
-                    if buffer.strip():
-                        self._speak_chunk_sync(buffer.strip())
+                    finish_signal_received = True
                     break
                 
                 buffer += text_chunk
@@ -74,18 +79,20 @@ class StreamingTTS:
                 sentence_found = False
                 for ending in sentence_endings:
                     if ending in buffer:
-                        parts = buffer.split(ending, 1)
-                        sentence = parts[0] + ending
-                        buffer = parts[1] if len(parts) > 1 else ""
+                        # Encontrar la posición del primer final de oración
+                        pos = buffer.find(ending)
+                        sentence = buffer[:pos + 1]
+                        buffer = buffer[pos + 1:].lstrip()  # Eliminar espacios al inicio del buffer restante
                         
                         if sentence.strip():
                             self._speak_chunk_sync(sentence.strip())
-                            word_count = 0
+                            word_count = len(buffer.split()) if buffer.strip() else 0
                             sentence_found = True
+                            last_speech_time = time_module.time()  # Actualizar tiempo de última reproducción
                         break
                 
                 # Si no hay final de oración pero ya tenemos varias palabras, reproducir
-                if not sentence_found and word_count >= 8:  # Reproducir cada 8 palabras
+                if not sentence_found and word_count >= 8:  # Reducido a 8 palabras para procesar más frecuentemente
                     # Buscar el último espacio para cortar en palabra completa
                     words = buffer.split()
                     if len(words) >= 6:
@@ -99,12 +106,35 @@ class StreamingTTS:
                         if chunk_text.strip():
                             self._speak_chunk_sync(chunk_text)
                             word_count = len(remaining_words)
+                            last_speech_time = time_module.time()  # Actualizar tiempo
+                
+                # NUEVO: Forzar reproducción si ha pasado mucho tiempo sin hablar (3 segundos)
+                current_time = time_module.time()
+                if buffer.strip() and (current_time - last_speech_time) > 3.0:
+                    self._speak_chunk_sync(buffer.strip())
+                    buffer = ""
+                    word_count = 0
+                    last_speech_time = current_time
                 
             except queue.Empty:
+                # Continuar si no hay nuevos chunks, pero verificar si debemos finalizar
+                if not self.is_running:
+                    break
+                # También verificar timeout por tiempo cuando no hay nuevos chunks
+                current_time = time_module.time()
+                if buffer.strip() and (current_time - last_speech_time) > 2.0:
+                    self._speak_chunk_sync(buffer.strip())
+                    buffer = ""
+                    word_count = 0
+                    last_speech_time = current_time
                 continue
             except Exception as e:
                 print(f"❌ Error en TTS worker: {e}")
                 break
+        
+        # CRUCIAL: Reproducir TODO el buffer restante al finalizar
+        if buffer.strip():
+            self._speak_chunk_sync(buffer.strip())
     
     def _speak_chunk_sync(self, text):
         """
@@ -122,7 +152,11 @@ class VoiceSynthesizer:
         self.initialized = False
         self.temp_dir = tempfile.gettempdir()
         self.audio_counter = 0
+        self.temp_files = []  # Lista para rastrear archivos temporales
         self.initialize()
+        
+        # Registrar limpieza al salir
+        atexit.register(self.cleanup)
     
     def initialize(self):
         """
@@ -132,6 +166,8 @@ class VoiceSynthesizer:
             bool: True si se inicializa correctamente
         """
         try:
+            # Configuración optimizada de pygame mixer
+            mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=1024)
             mixer.init()
             self.initialized = True
             print("✅ Sintetizador de voz (gTTS + Pygame) iniciado")
@@ -163,7 +199,9 @@ class VoiceSynthesizer:
 
         try:
             # Crear archivo de audio temporal
-            audio_file = os.path.join(self.temp_dir, "response.mp3")
+            audio_file = os.path.join(self.temp_dir, f"response_{self.audio_counter}.mp3")
+            self.audio_counter += 1
+            self.temp_files.append(audio_file)
             
             # Generar audio con gTTS
             print(f"🗣️ Diciendo: {text_to_speak}")
@@ -174,20 +212,92 @@ class VoiceSynthesizer:
             mixer.music.load(audio_file)
             mixer.music.play()
             
-            # Esperar a que termine la reproducción
+            # Esperar a que termine la reproducción de forma más eficiente
+            timeout = 30  # 30 segundos máximo
+            start_time = time_module.time()
             while mixer.music.get_busy():
-                time.Clock().tick(10)
+                if time_module.time() - start_time > timeout:
+                    break
+                time_module.sleep(0.01)  # Reducido el sleep
             
-            # Limpiar archivo temporal
-            mixer.music.unload()
-            if os.path.exists(audio_file):
-                os.remove(audio_file)
+            # Limpiar archivo temporal de forma segura
+            self._safe_cleanup_file(audio_file)
             
             return True
             
         except Exception as e:
             print(f"❌ Error al sintetizar/reproducir voz: {e}")
             return False
+    
+    def speak_chunk_sequential(self, text_chunk, lang='es'):
+        """
+        Reproduce un fragmento de texto de forma secuencial (sin hilo separado)
+        Garantiza el orden correcto de reproducción - VERSIÓN OPTIMIZADA
+        
+        Args:
+            text_chunk (str): Fragmento de texto a reproducir
+            lang (str): Idioma para la síntesis
+        """
+        if not self.initialized:
+            return False
+        
+        if not text_chunk or text_chunk.isspace():
+            return False
+
+        try:
+            # Generar nombre único para evitar conflictos
+            self.audio_counter += 1
+            audio_file = os.path.join(self.temp_dir, f"seq_chunk_{self.audio_counter}.mp3")
+            self.temp_files.append(audio_file)
+            
+            # Generar audio
+            tts = gTTS(text=text_chunk, lang=lang, slow=False)
+            tts.save(audio_file)
+            
+            # Esperar a que termine la reproducción anterior de forma más eficiente
+            timeout = 10  # 10 segundos máximo para esperar
+            start_time = time_module.time()
+            while mixer.music.get_busy():
+                if time_module.time() - start_time > timeout:
+                    mixer.music.stop()  # Forzar parada si tarda mucho
+                    break
+                time_module.sleep(0.01)  # Sleep muy corto para evitar delays
+            
+            # Cargar y reproducir
+            mixer.music.load(audio_file)
+            mixer.music.play()
+            
+            # Esperar a que termine la reproducción actual
+            start_time = time_module.time()
+            timeout = 30  # 30 segundos máximo para la reproducción
+            while mixer.music.get_busy():
+                if time_module.time() - start_time > timeout:
+                    break
+                time_module.sleep(0.01)
+            
+            # Limpiar archivo temporal de forma segura
+            self._safe_cleanup_file(audio_file)
+            
+            return True
+                
+        except Exception as e:
+            print(f"❌ Error en chunk secuencial: {e}")
+            return False
+    
+    def _safe_cleanup_file(self, audio_file):
+        """
+        Limpia un archivo de forma segura sin causar errores
+        """
+        try:
+            # Pequeña pausa para asegurar que pygame terminó de usar el archivo
+            time_module.sleep(0.05)
+            
+            if os.path.exists(audio_file):
+                os.remove(audio_file)
+                if audio_file in self.temp_files:
+                    self.temp_files.remove(audio_file)
+        except Exception as e:
+            print(f"⚠️ No se pudo limpiar archivo temporal {audio_file}: {e}")
     
     def speak_async(self, text_to_speak, lang='es', slow=False):
         """
@@ -208,111 +318,37 @@ class VoiceSynthesizer:
         if not text_to_speak or text_to_speak.isspace():
             return False
 
-        try:
-            # Crear archivo de audio temporal
-            audio_file = os.path.join(self.temp_dir, "response_async.mp3")
-            
-            # Generar audio con gTTS
-            print(f"🗣️ Diciendo: {text_to_speak}")
-            tts = gTTS(text=text_to_speak, lang=lang, slow=slow)
-            tts.save(audio_file)
-            
-            # Reproducir audio sin bloquear
-            mixer.music.load(audio_file)
-            mixer.music.play()
-            
-            return True
-            
-        except Exception as e:
-            print(f"❌ Error al sintetizar voz asíncrona: {e}")
-            return False
-    
-    def speak_chunk_async(self, text_chunk, lang='es'):
-        """
-        Reproduce un fragmento de texto de forma asíncrona para streaming
-        
-        Args:
-            text_chunk (str): Fragmento de texto a reproducir
-            lang (str): Idioma para la síntesis
-        """
         def _async_speak():
             try:
-                # Generar nombre único para evitar conflictos
+                # Crear archivo de audio temporal
+                audio_file = os.path.join(self.temp_dir, f"response_async_{self.audio_counter}.mp3")
                 self.audio_counter += 1
-                audio_file = os.path.join(self.temp_dir, f"chunk_{self.audio_counter}.mp3")
+                self.temp_files.append(audio_file)
                 
-                # Generar audio
-                tts = gTTS(text=text_chunk, lang=lang, slow=False)
+                # Generar audio con gTTS
+                print(f"🗣️ Diciendo: {text_to_speak}")
+                tts = gTTS(text=text_to_speak, lang=lang, slow=slow)
                 tts.save(audio_file)
                 
-                # Esperar a que termine la reproducción anterior si es necesario
-                while mixer.music.get_busy():
-                    time_module.sleep(0.1)
-                
-                # Cargar y reproducir
+                # Reproducir audio sin bloquear
                 mixer.music.load(audio_file)
                 mixer.music.play()
                 
-                # Esperar a que termine y limpiar
+                # Esperar y limpiar en el hilo asíncrono
+                start_time = time_module.time()
                 while mixer.music.get_busy():
-                    time_module.sleep(0.1)
+                    if time_module.time() - start_time > 30:
+                        break
+                    time_module.sleep(0.01)
                 
-                mixer.music.unload()
-                if os.path.exists(audio_file):
-                    os.remove(audio_file)
-                    
+                self._safe_cleanup_file(audio_file)
+                
             except Exception as e:
-                print(f"❌ Error en chunk async: {e}")
+                print(f"❌ Error en voz asíncrona: {e}")
         
         # Ejecutar en hilo separado
         threading.Thread(target=_async_speak, daemon=True).start()
-    
-    def speak_chunk_sequential(self, text_chunk, lang='es'):
-        """
-        Reproduce un fragmento de texto de forma secuencial (sin hilo separado)
-        Garantiza el orden correcto de reproducción
-        
-        Args:
-            text_chunk (str): Fragmento de texto a reproducir
-            lang (str): Idioma para la síntesis
-        """
-        if not self.initialized:
-            return False
-        
-        if not text_chunk or text_chunk.isspace():
-            return False
-
-        try:
-            # Generar nombre único para evitar conflictos
-            self.audio_counter += 1
-            audio_file = os.path.join(self.temp_dir, f"seq_chunk_{self.audio_counter}.mp3")
-            
-            # Generar audio
-            tts = gTTS(text=text_chunk, lang=lang, slow=False)
-            tts.save(audio_file)
-            
-            # Esperar a que termine la reproducción anterior
-            while mixer.music.get_busy():
-                time_module.sleep(0.05)
-            
-            # Cargar y reproducir
-            mixer.music.load(audio_file)
-            mixer.music.play()
-            
-            # Esperar a que termine la reproducción
-            while mixer.music.get_busy():
-                time_module.sleep(0.05)
-            
-            # Limpiar archivo temporal
-            mixer.music.unload()
-            if os.path.exists(audio_file):
-                os.remove(audio_file)
-            
-            return True
-                
-        except Exception as e:
-            print(f"❌ Error en chunk secuencial: {e}")
-            return False
+        return True
     
     def is_speaking(self):
         """
@@ -347,9 +383,21 @@ class VoiceSynthesizer:
         Limpia recursos del sintetizador
         """
         if self.initialized:
-            mixer.music.stop()
-            mixer.quit()
-            self.initialized = False
+            try:
+                mixer.music.stop()
+                
+                # Limpiar todos los archivos temporales restantes
+                for temp_file in self.temp_files[:]:  # Copia la lista para evitar modificaciones durante iteración
+                    self._safe_cleanup_file(temp_file)
+                
+                mixer.quit()
+                self.initialized = False
+                print("🧹 Sintetizador de voz limpiado")
+            except Exception as e:
+                # Solo mostrar error si no es el error común de "mixer not initialized"
+                if "mixer not initialized" not in str(e):
+                    print(f"⚠️ Error durante limpieza: {e}")
+                self.initialized = False
 
 # Instancias globales para facilitar el uso
 _voice_synthesizer = None
