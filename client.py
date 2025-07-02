@@ -230,7 +230,7 @@ class AuraClient:
             
         try:
             # Crear cliente MCP
-            self.mcp_client = MultiServerMCPClient(mcp_configs)
+            self.mcp_client = MultiServerMCPClient(mcp_configs)  # type: ignore
             
             # Obtener herramientas disponibles
             self.mcp_tools = await self.mcp_client.get_tools()
@@ -294,7 +294,7 @@ class AuraClient:
     async def chat_with_voice(self, user_input: str) -> str:
         """
         Realiza una conversación con entrada de texto y salida de voz con streaming.
-        Soporta tanto Gemini como Ollama con herramientas MCP.
+        Soporta tanto Gemini como Ollama con herramientas MCP con síntesis natural.
         
         Args:
             user_input: El mensaje del usuario
@@ -306,115 +306,181 @@ class AuraClient:
             # Agregar mensaje del usuario al historial
             self.conversation_history.append(HumanMessage(content=user_input))
             
-            # Crear modelo con herramientas MCP si están disponibles
+            # Usar un enfoque de dos fases si hay herramientas MCP
             if self.mcp_tools:
-                model_with_tools = self.model.bind_tools(self.mcp_tools)
-                print(f"🔧 Usando {len(self.mcp_tools)} herramientas MCP con {self.model_type.upper()}")
+                return await self._chat_with_mcp_synthesis(user_input)
             else:
-                model_with_tools = self.model
-                print(f"🤖 Usando {self.model_type.upper()} sin herramientas MCP")
-            
-            # Intentar streaming primero
-            try:
-                full_response = ""
-                
-                if self.voice_enabled and StreamingTTS:
-                    # Streaming con TTS
-                    streaming_tts = StreamingTTS()
-                    if self.voice_synthesizer:
-                        streaming_tts.start(self.voice_synthesizer)
-                    
-                    for chunk in model_with_tools.stream(self.conversation_history):
-                        if hasattr(chunk, 'content') and chunk.content:
-                            content = chunk.content
-                            full_response += content
-                            print(content, end='', flush=True)
-                            
-                            # Agregar contenido al buffer de TTS
-                            if streaming_tts:
-                                streaming_tts.add_text(content)
-                        
-                        # Manejar llamadas a herramientas MCP
-                        elif hasattr(chunk, 'tool_calls') and chunk.tool_calls:
-                            for tool_call in chunk.tool_calls:
-                                print(f"\n🔧 Ejecutando herramienta: {tool_call['name']}")
-                                print(f"📋 Argumentos: {tool_call['args']}")
-                                
-                                # Ejecutar herramienta MCP
-                                try:
-                                    tool_result = await self._execute_mcp_tool(tool_call)
-                                    tool_response = f"\n✅ Resultado de {tool_call['name']}: {tool_result}\n"
-                                    full_response += tool_response
-                                    print(tool_response)
-                                    
-                                    # Agregar resultado al TTS
-                                    if streaming_tts:
-                                        streaming_tts.add_text(tool_response)
-                                        
-                                except Exception as e:
-                                    error_msg = f"\n❌ Error ejecutando {tool_call['name']}: {e}\n"
-                                    full_response += error_msg
-                                    print(error_msg)
-                    
-                    # Finalizar TTS
-                    if streaming_tts:
-                        streaming_tts.finish()
-                
-                else:
-                    # Solo texto, sin voz
-                    for chunk in model_with_tools.stream(self.conversation_history):
-                        if hasattr(chunk, 'content') and chunk.content:
-                            content = chunk.content
-                            full_response += content
-                            print(content, end='', flush=True)
-                        elif hasattr(chunk, 'tool_calls') and chunk.tool_calls:
-                            for tool_call in chunk.tool_calls:
-                                try:
-                                    tool_result = await self._execute_mcp_tool(tool_call)
-                                    tool_response = f"\n✅ {tool_call['name']}: {tool_result}\n"
-                                    full_response += tool_response
-                                    print(tool_response)
-                                except Exception as e:
-                                    error_msg = f"\n❌ Error en {tool_call['name']}: {e}\n"
-                                    full_response += error_msg
-                                    print(error_msg)
-                
-                print()  # Nueva línea al final
-                
-            except Exception as streaming_error:
-                print(f"⚠️  Streaming falló: {streaming_error}")
-                print("🔄 Intentando con invoke...")
-                
-                # Fallback a invoke
-                response = model_with_tools.invoke(self.conversation_history)
-                full_response = response.content
-                
-                # Verificar si hay llamadas a herramientas
-                if hasattr(response, 'tool_calls') and response.tool_calls:
-                    for tool_call in response.tool_calls:
-                        try:
-                            tool_result = await self._execute_mcp_tool(tool_call)
-                            tool_response = f"\n✅ {tool_call['name']}: {tool_result}\n"
-                            full_response += tool_response
-                        except Exception as e:
-                            error_msg = f"\n❌ Error en {tool_call['name']}: {e}\n"
-                            full_response += error_msg
-                
-                print(full_response)
-                
-                # Reproducir audio si está habilitado
-                if self.voice_enabled:
-                    self.speak_text(full_response)
-            
-            # Agregar respuesta al historial
-            self.conversation_history.append(AIMessage(content=full_response))
-            
-            return full_response
+                return await self._chat_without_mcp(user_input)
             
         except Exception as e:
             error_msg = f"❌ Error en chat: {e}"
             print(error_msg)
             return error_msg
+    
+    async def _chat_with_mcp_synthesis(self, user_input: str) -> str:
+        """
+        Chat con MCPs usando síntesis natural de respuestas
+        """
+        print(f"🔧 Usando {len(self.mcp_tools)} herramientas MCP con {self.model_type.upper()}")
+        
+        # Fase 1: Ejecutar herramientas MCP y recopilar información
+        model_with_tools = self.model.bind_tools(self.mcp_tools)
+        tool_results = []
+        mcp_used = False
+        
+        try:
+            # Obtener respuesta inicial con herramientas
+            response = model_with_tools.invoke(self.conversation_history)
+            
+            # Verificar si se usaron herramientas MCP
+            if hasattr(response, 'tool_calls') and getattr(response, 'tool_calls', None):
+                mcp_used = True
+                print("🔍 Recopilando información...")
+                
+                for tool_call in getattr(response, 'tool_calls', []):
+                    print(f"🔧 Ejecutando: {tool_call['name']}")
+                    
+                    try:
+                        tool_result = await self._execute_mcp_tool(tool_call)
+                        tool_results.append({
+                            'tool_name': tool_call['name'],
+                            'query': tool_call.get('args', {}),
+                            'result': tool_result
+                        })
+                        print(f"✅ {tool_call['name']} completado")
+                        
+                    except Exception as e:
+                        print(f"❌ Error en {tool_call['name']}: {e}")
+                        tool_results.append({
+                            'tool_name': tool_call['name'],
+                            'query': tool_call.get('args', {}),
+                            'result': f"Error: {e}"
+                        })
+            
+            # Si no se usaron MCPs, respuesta directa
+            if not mcp_used:
+                return await self._stream_response(response.content)
+            
+            # Fase 2: Síntesis natural de la información recopilada
+            print("\n🧠 Procesando información y generando respuesta natural...")
+            return await self._synthesize_natural_response(user_input, tool_results)
+            
+        except Exception as e:
+            print(f"❌ Error en procesamiento MCP: {e}")
+            # Fallback a respuesta simple
+            return await self._chat_without_mcp(user_input)
+    
+    async def _synthesize_natural_response(self, user_input: str, tool_results: List[Dict]) -> str:
+        """
+        Sintetiza una respuesta natural basada en los resultados de las herramientas MCP
+        """
+        # Construir contexto con información recopilada
+        context_parts = [
+            f"Pregunta del usuario: {user_input}",
+            "\nInformación recopilada:",
+        ]
+        
+        for result in tool_results:
+            context_parts.append(
+                f"\n• De {result['tool_name']}: {result['result'][:1500]}..."  # Limitar longitud
+            )
+        
+        context_parts.append(
+            "\nInstrucciones: Basándote en la información anterior, responde la pregunta del usuario de manera natural y conversacional, como si fueras una persona hablando. NO menciones herramientas, APIs o resultados técnicos. NO leas literalmente los resultados. Sintetiza la información y responde directamente la pregunta con un tono humano y natural."
+        )
+        
+        synthesis_prompt = "".join(context_parts)
+        
+        # Crear nueva conversación temporal para la síntesis
+        synthesis_messages = [HumanMessage(content=synthesis_prompt)]
+        
+        # Generar respuesta natural
+        try:
+            natural_response = ""
+            
+            # Streaming de la respuesta sintetizada
+            if self.voice_enabled and StreamingTTS:
+                streaming_tts = StreamingTTS()
+                if self.voice_synthesizer:
+                    streaming_tts.start(self.voice_synthesizer)
+                
+                for chunk in self.model.stream(synthesis_messages):
+                    if hasattr(chunk, 'content') and chunk.content:
+                        content = str(chunk.content) if chunk.content else ""
+                        natural_response += content
+                        print(content, end='', flush=True)
+                        
+                        if streaming_tts:
+                            streaming_tts.add_text(content)
+                
+                if streaming_tts:
+                    streaming_tts.finish()
+            else:
+                # Solo texto
+                for chunk in self.model.stream(synthesis_messages):
+                    if hasattr(chunk, 'content') and chunk.content:
+                        content = chunk.content
+                        natural_response += content
+                        print(content, end='', flush=True)
+            
+            print()  # Nueva línea
+            
+            # Agregar la respuesta sintetizada al historial
+            self.conversation_history.append(AIMessage(content=natural_response))
+            return natural_response
+            
+        except Exception as e:
+            print(f"❌ Error en síntesis: {e}")
+            # Fallback: usar la información bruta pero de forma más limpia
+            fallback_response = f"Según la información encontrada: {tool_results[0]['result'][:500]}..."
+            print(fallback_response)
+            
+            if self.voice_enabled:
+                self.speak_text(fallback_response)
+            
+            self.conversation_history.append(AIMessage(content=fallback_response))
+            return fallback_response
+    
+    async def _chat_without_mcp(self, user_input: str) -> str:
+        """
+        Chat normal sin herramientas MCP
+        """
+        print(f"🤖 Usando {self.model_type.upper()} sin herramientas MCP")
+        
+        try:
+            response = self.model.invoke(self.conversation_history)
+            return await self._stream_response(response.content)
+            
+        except Exception as e:
+            print(f"❌ Error en chat simple: {e}")
+            return f"Error: {e}"
+    
+    async def _stream_response(self, content: str) -> str:
+        """
+        Reproduce una respuesta con streaming y TTS
+        """
+        if self.voice_enabled and StreamingTTS:
+            streaming_tts = StreamingTTS()
+            if self.voice_synthesizer:
+                streaming_tts.start(self.voice_synthesizer)
+            
+            # Simular streaming carácter por carácter
+            for char in content:
+                print(char, end='', flush=True)
+                if streaming_tts:
+                    streaming_tts.add_text(char)
+                await asyncio.sleep(0.01)  # Pequeña pausa para simular streaming
+            
+            if streaming_tts:
+                streaming_tts.finish()
+        else:
+            print(content)
+            if self.voice_enabled:
+                self.speak_text(content)
+        
+        print()  # Nueva línea
+        self.conversation_history.append(AIMessage(content=content))
+        return content
 
 # Alias para mantener compatibilidad con el código existente
 GeminiClient = AuraClient
