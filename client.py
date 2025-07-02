@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 import os
 import sys
-from typing import List, Dict, Any, Iterator
+import asyncio
+import threading
+import tempfile
+from gtts import gTTS
+import pygame
+from typing import List, Dict, Any, Iterator, Optional
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.schema import HumanMessage, AIMessage, BaseMessage
 from langchain.callbacks.base import BaseCallbackHandler
@@ -12,7 +17,8 @@ try:
     from engine.voice.hear import initialize_recognizer, listen_for_command
     from engine.voice.speak import (
         speak, stop_speaking, is_speaking,
-        start_streaming_tts, add_text_to_stream, finish_streaming_tts
+        start_streaming_tts, add_text_to_stream, finish_streaming_tts,
+        StreamingTTS, VoiceSynthesizer, get_synthesizer
     )
     VOICE_AVAILABLE = True
     print("✅ Módulos de voz cargados correctamente")
@@ -22,6 +28,16 @@ except ImportError as e:
     VOICE_AVAILABLE = False
     print(f"⚠️ Módulos de voz no disponibles: {e}")
     print("💡 Instala las dependencias con: pip install -r requirements.txt")
+    StreamingTTS = None
+    VoiceSynthesizer = None
+    get_synthesizer = None
+
+# Importaciones para MCP
+try:
+    from langchain_mcp_adapters.client import MultiServerMCPClient
+except ImportError as e:
+    print(f"⚠️  Error cargando MCP: {e}")
+    MultiServerMCPClient = None
 
 # Configurar API Key de Google
 os.environ["GOOGLE_API_KEY"] = "YOUR_GOOGLE_API_KEY_HERE"
@@ -124,20 +140,36 @@ class GeminiClient:
         
         if self.voice_enabled:
             self._initialize_voice()
+        
+        # Lock para controlar orden del audio
+        self.audio_lock = threading.Lock()
+        
+        # Cliente MCP
+        self.mcp_client = None
+        self.mcp_tools = []
+        
+        # Inicializar pygame para audio
+        pygame.mixer.init()
+        
+        print("✅ Cliente Gemini inicializado correctamente")
     
     def _initialize_voice(self):
         """
         Inicializa los componentes de voz
         """
-        try:
-            self.voice_recognizer = initialize_recognizer()
-            if self.voice_recognizer:
-                print("🎤 Sistema de voz activado")
-            else:
-                print("❌ Error al inicializar reconocimiento de voz")
+        if get_synthesizer:
+            try:
+                self.voice_recognizer = initialize_recognizer()
+                if self.voice_recognizer:
+                    print("🎤 Sistema de voz activado")
+                else:
+                    print("⚠️  Sistema de voz no pudo inicializarse")
+                    self.voice_enabled = False
+            except Exception as e:
+                print(f"⚠️  Error inicializando voz: {e}")
                 self.voice_enabled = False
-        except Exception as e:
-            print(f"❌ Error al inicializar voz: {e}")
+        else:
+            print("⚠️  Módulos de voz no disponibles")
             self.voice_enabled = False
     
     def listen_to_voice(self, timeout=5):
@@ -531,6 +563,244 @@ class GeminiClient:
             role_name = "Tú" if isinstance(msg, HumanMessage) else self.model_name
             content = msg.content[:100] + "..." if len(msg.content) > 100 else msg.content
             print(f"{i}. {role_icon} {role_name}: {content}")
+
+    async def setup_mcp_servers(self, mcp_configs: Dict[str, Dict] = None):
+        """
+        Configura servidores MCP
+        
+        Args:
+            mcp_configs: Configuración de servidores MCP
+                Ejemplo:
+                {
+                    "filesystem": {
+                        "command": "npx",
+                        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/ruta/permitida"],
+                        "transport": "stdio"
+                    }
+                }
+        """
+        if not MultiServerMCPClient:
+            print("❌ langchain-mcp-adapters no está instalado")
+            return False
+            
+        if mcp_configs is None:
+            # Configuración por defecto para filesystem MCP
+            home_dir = os.path.expanduser("~")
+            mcp_configs = {
+                "filesystem": {
+                    "command": "npx",
+                    "args": [
+                        "-y",
+                        "@modelcontextprotocol/server-filesystem",
+                        home_dir,  # Permite acceso al directorio home
+                        f"{home_dir}/Documents",  # y a Documents
+                        f"{home_dir}/Desktop"     # y a Desktop
+                    ],
+                    "transport": "stdio"
+                }
+            }
+        
+        try:
+            # Crear cliente MCP
+            self.mcp_client = MultiServerMCPClient(mcp_configs)
+            
+            # Obtener herramientas disponibles
+            self.mcp_tools = await self.mcp_client.get_tools()
+            
+            print(f"✅ MCPs configurados correctamente. {len(self.mcp_tools)} herramientas disponibles:")
+            for tool in self.mcp_tools:
+                print(f"  - {tool.name}: {tool.description}")
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error configurando MCPs: {e}")
+            print("ℹ️  Asegúrate de tener Node.js y npm instalados para usar el filesystem MCP")
+            self.mcp_client = None
+            self.mcp_tools = []
+            return False
+    
+    def add_mcp_server(self, name: str, config: Dict[str, Any]):
+        """
+        Agregar un servidor MCP adicional dinámicamente
+        """
+        # Esta función requeriría reinicializar el cliente MCP
+        # Por simplicidad, recomendamos configurar todos los servidores al inicio
+        print(f"ℹ️  Para agregar '{name}', reinicia el cliente con la nueva configuración")
+
+    async def chat_with_voice(self, user_input: str) -> str:
+        """
+        Realiza una conversación con entrada de texto y salida de voz con streaming.
+        Ahora incluye soporte para herramientas MCP.
+        
+        Args:
+            user_input: El mensaje del usuario
+            
+        Returns:
+            La respuesta del asistente
+        """
+        try:
+            # Agregar mensaje del usuario al historial
+            self.conversation_history.append(HumanMessage(content=user_input))
+            
+            # Crear modelo con herramientas MCP si están disponibles
+            if self.mcp_tools:
+                model_with_tools = self.model.bind_tools(self.mcp_tools)
+                print(f"🔧 Usando {len(self.mcp_tools)} herramientas MCP disponibles")
+            else:
+                model_with_tools = self.model
+            
+            # Intentar streaming primero
+            try:
+                full_response = ""
+                
+                if self.voice_enabled and StreamingTTS:
+                    # Streaming con TTS
+                    streaming_tts = StreamingTTS()
+                    if get_synthesizer:
+                        streaming_tts.start(get_synthesizer())
+                    
+                    for chunk in model_with_tools.stream(self.conversation_history):
+                        if hasattr(chunk, 'content') and chunk.content:
+                            content = chunk.content
+                            full_response += content
+                            print(content, end='', flush=True)
+                            
+                            # Agregar contenido al buffer de TTS
+                            if streaming_tts:
+                                streaming_tts.add_text(content)
+                        
+                        # Manejar llamadas a herramientas MCP
+                        elif hasattr(chunk, 'tool_calls') and chunk.tool_calls:
+                            for tool_call in chunk.tool_calls:
+                                print(f"\n🔧 Ejecutando herramienta: {tool_call['name']}")
+                                print(f"📋 Argumentos: {tool_call['args']}")
+                                
+                                # Ejecutar herramienta MCP
+                                try:
+                                    tool_result = await self._execute_mcp_tool(tool_call)
+                                    tool_response = f"\n✅ Resultado de {tool_call['name']}: {tool_result}\n"
+                                    full_response += tool_response
+                                    print(tool_response)
+                                    
+                                    # Agregar resultado al TTS
+                                    if streaming_tts:
+                                        streaming_tts.add_text(tool_response)
+                                        
+                                except Exception as e:
+                                    error_msg = f"\n❌ Error ejecutando {tool_call['name']}: {e}\n"
+                                    full_response += error_msg
+                                    print(error_msg)
+                    
+                    # Finalizar TTS
+                    if streaming_tts:
+                        streaming_tts.finish()
+                
+                else:
+                    # Solo texto, sin voz
+                    for chunk in model_with_tools.stream(self.conversation_history):
+                        if hasattr(chunk, 'content') and chunk.content:
+                            content = chunk.content
+                            full_response += content
+                            print(content, end='', flush=True)
+                        elif hasattr(chunk, 'tool_calls') and chunk.tool_calls:
+                            for tool_call in chunk.tool_calls:
+                                try:
+                                    tool_result = await self._execute_mcp_tool(tool_call)
+                                    tool_response = f"\n✅ {tool_call['name']}: {tool_result}\n"
+                                    full_response += tool_response
+                                    print(tool_response)
+                                except Exception as e:
+                                    error_msg = f"\n❌ Error en {tool_call['name']}: {e}\n"
+                                    full_response += error_msg
+                                    print(error_msg)
+                
+                print()  # Nueva línea al final
+                
+            except Exception as streaming_error:
+                print(f"⚠️  Streaming falló: {streaming_error}")
+                print("🔄 Intentando con invoke...")
+                
+                # Fallback a invoke
+                response = model_with_tools.invoke(self.conversation_history)
+                full_response = response.content
+                
+                # Verificar si hay llamadas a herramientas
+                if hasattr(response, 'tool_calls') and response.tool_calls:
+                    for tool_call in response.tool_calls:
+                        try:
+                            tool_result = await self._execute_mcp_tool(tool_call)
+                            tool_response = f"\n✅ {tool_call['name']}: {tool_result}\n"
+                            full_response += tool_response
+                        except Exception as e:
+                            error_msg = f"\n❌ Error en {tool_call['name']}: {e}\n"
+                            full_response += error_msg
+                
+                print(full_response)
+                
+                # Reproducir audio si está habilitado
+                if self.voice_enabled:
+                    self.speak_text(full_response)
+            
+            # Agregar respuesta al historial
+            self.conversation_history.append(AIMessage(content=full_response))
+            
+            return full_response
+            
+        except Exception as e:
+            error_msg = f"❌ Error en chat: {e}"
+            print(error_msg)
+            return error_msg
+    
+    async def _execute_mcp_tool(self, tool_call: Dict[str, Any]) -> str:
+        """
+        Ejecuta una herramienta MCP
+        
+        Args:
+            tool_call: Información de la llamada a la herramienta
+            
+        Returns:
+            Resultado de la herramienta
+        """
+        if not self.mcp_client:
+            raise Exception("Cliente MCP no inicializado")
+        
+        tool_name = tool_call['name']
+        tool_args = tool_call.get('args', {})
+        
+        # Buscar la herramienta en nuestras herramientas MCP
+        target_tool = None
+        for tool in self.mcp_tools:
+            if tool.name == tool_name:
+                target_tool = tool
+                break
+        
+        if not target_tool:
+            raise Exception(f"Herramienta '{tool_name}' no encontrada")
+        
+        # Ejecutar la herramienta usando LangChain de forma asíncrona
+        try:
+            result = await target_tool.ainvoke(tool_args)
+        except Exception as e:
+            # Fallback a invoke si ainvoke no funciona
+            try:
+                result = target_tool.invoke(tool_args)
+            except Exception as e2:
+                raise Exception(f"Error ejecutando herramienta: {e2}")
+        
+        return str(result)
+
+    def speak_text(self, text: str):
+        """
+        Reproduce texto usando síntesis de voz
+        
+        Args:
+            text: Texto a reproducir
+        """
+        if self.voice_enabled and get_synthesizer:
+            get_synthesizer().speak(text)
+        else:
+            print("🔇 Voz no disponible")
 
 # Alias para mantener compatibilidad con el código existente
 OllamaClient = GeminiClient

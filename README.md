@@ -513,4 +513,339 @@ El diseño modular permite extender fácilmente con:
 - Memoria persistente
 - Agentes y herramientas
 - RAG (Retrieval Augmented Generation)
-- Otros proveedores de IA (OpenAI, Anthropic, etc.) 
+- Otros proveedores de IA (OpenAI, Anthropic, etc.)
+
+# Aura - Asistente IA con Soporte MCP
+
+Aura es un asistente de inteligencia artificial avanzado que utiliza **Google Gemini** a través de **LangChain** y soporta el **Model Context Protocol (MCP)** para conectarse con herramientas externas y fuentes de datos.
+
+## 🌟 Características Principales
+
+- **🤖 IA Avanzada**: Powered by Google Gemini 2.0 Flash Experimental
+- **🎤 Reconocimiento de Voz**: Conversaciones naturales por voz
+- **🔊 Síntesis de Voz**: Respuestas en audio con streaming
+- **🔧 Soporte MCP**: Conecta con herramientas externas (filesystem, APIs, etc.)
+- **💬 Streaming**: Respuestas en tiempo real
+- **🎯 Multimodal**: Soporte para texto, voz y herramientas
+
+## 📦 Instalación
+
+### Requisitos Previos
+
+```bash
+# Para Ubuntu/Debian
+sudo apt update && sudo apt install python3 python3-pip nodejs npm portaudio19-dev
+
+# Para macOS
+brew install python node portaudio
+
+# Para Windows
+# Instalar Python desde python.org
+# Instalar Node.js desde nodejs.org
+# Instalar Visual Studio Build Tools
+```
+
+### Instalación del Proyecto
+
+```bash
+# Clonar el repositorio
+git clone <repository-url>
+cd Aura_Ollama
+
+# Crear entorno virtual
+python3 -m venv venv
+source venv/bin/activate  # En Windows: venv\Scripts\activate
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Descargar modelo de voz (opcional)
+# El modelo vosk-model-es-0.42 ya está incluido
+```
+
+## 🔧 Model Context Protocol (MCP)
+
+### ¿Qué es MCP?
+
+El **Model Context Protocol (MCP)** es un protocolo abierto desarrollado por Anthropic que estandariza cómo las aplicaciones LLM se conectan con fuentes de datos externas y herramientas. Permite que tu asistente IA acceda a:
+
+- **Sistema de archivos** (leer, escribir, buscar archivos)
+- **APIs externas** (clima, noticias, bases de datos)
+- **Herramientas especializadas** (calculadoras, convertidores)
+- **Servicios web** (correo, calendarios, CRM)
+
+### Configuración de MCP
+
+#### 1. Filesystem MCP (Incluido por defecto)
+
+El servidor MCP de filesystem permite que Aura interactúe con tu sistema de archivos de manera segura:
+
+```python
+# Configuración automática en main.py
+mcp_config = {
+    "filesystem": {
+        "command": "npx",
+        "args": [
+            "-y",
+            "@modelcontextprotocol/server-filesystem",
+            "~/",              # Directorio home
+            "~/Documents",     # Documentos
+            "~/Desktop",       # Escritorio
+            "~/Downloads"      # Descargas
+        ],
+        "transport": "stdio"
+    }
+}
+```
+
+#### 2. Herramientas Disponibles
+
+Con el filesystem MCP, puedes pedirle a Aura que:
+
+- **📁 Liste archivos**: "Muéstrame los archivos en mi escritorio"
+- **📖 Lea archivos**: "Lee el contenido de mi archivo README.txt"
+- **✏️ Cree archivos**: "Crea un archivo llamado 'notas.txt' con mis ideas"
+- **🔍 Busque archivos**: "Busca archivos que contengan 'proyecto' en el nombre"
+- **📊 Info de archivos**: "Dame información sobre el archivo config.json"
+- **📂 Cree directorios**: "Crea una carpeta llamada 'proyectos'"
+- **🔄 Mueva archivos**: "Mueve el archivo test.txt a la carpeta backup"
+
+#### 3. Configuración Personalizada
+
+Puedes personalizar los servidores MCP editando el archivo `main.py`:
+
+```python
+# Configuración personalizada
+custom_mcp_config = {
+    "filesystem": {
+        "command": "npx", 
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/ruta/específica"],
+        "transport": "stdio"
+    },
+    "weather": {
+        "command": "python",
+        "args": ["path/to/weather_server.py"],
+        "transport": "stdio"
+    }
+}
+```
+
+### Seguridad MCP
+
+- **🔒 Sandboxing**: MCPs solo acceden a directorios especificados
+- **✅ Validación**: Rutas validadas para prevenir ataques de directorio
+- **🛡️ Permisos**: Control granular de qué puede hacer cada servidor
+- **🔍 Auditoría**: Registro de todas las operaciones realizadas
+
+## 🚀 Uso
+
+### Modo Básico (Sin MCP)
+
+```bash
+python main.py
+```
+
+### Modo Con MCP (Recomendado)
+
+```bash
+# Asegúrate de tener Node.js instalado
+node --version  # Debe mostrar v14+ 
+
+# Ejecutar Aura con MCP
+python main.py
+```
+
+### Ejemplos de Comandos MCP
+
+```bash
+# Explorar archivos
+"Lista los archivos en mi directorio Documents"
+"¿Qué hay en mi escritorio?"
+
+# Leer contenido
+"Lee el archivo package.json y explícame qué hace"
+"Muéstrame el contenido de mi archivo de configuración"
+
+# Crear y modificar
+"Crea un archivo llamado 'ideas.md' con una lista de proyectos"
+"Escribe un script Python básico en mi escritorio"
+
+# Buscar
+"Busca todos los archivos .py en mi carpeta de proyectos"
+"Encuentra archivos que contengan 'todo' en el nombre"
+
+# Información
+"Dame información detallada sobre el archivo más grande en Downloads"
+"¿Cuándo fue modificado por última vez mi archivo .bashrc?"
+```
+
+## 🧪 Ejemplo de Prueba MCP
+
+Usa el script de ejemplo incluido:
+
+```bash
+python example_mcp_usage.py
+```
+
+Este script te permite:
+1. Probar el filesystem MCP interactivamente  
+2. Ver configuraciones personalizadas
+3. Aprender sobre las capacidades MCP
+
+## 🎤 Uso por Voz
+
+```bash
+# En la interfaz de chat, escribe:
+voice
+
+# Luego habla tu comando, por ejemplo:
+"Lista mis archivos de escritorio"
+"Crea un archivo con notas importantes"
+```
+
+## 🏗️ Arquitectura Técnica
+
+```mermaid
+graph TB
+    A[Usuario] --> B[Aura Main]
+    B --> C[GeminiClient]
+    C --> D[Google Gemini]
+    C --> E[MCP Client]
+    E --> F[Filesystem MCP]
+    E --> G[Otros MCPs]
+    F --> H[Sistema Archivos]
+    C --> I[StreamingTTS]
+    C --> J[VoiceRecognizer]
+```
+
+### Componentes MCP
+
+1. **MultiServerMCPClient**: Gestiona conexiones a múltiples servidores MCP
+2. **Tool Binding**: Integra herramientas MCP con el modelo LLM  
+3. **Transport Layer**: Comunicación stdio/HTTP con servidores
+4. **Security Layer**: Validación y sandboxing de operaciones
+
+## 🛠️ Desarrollo y Extensión
+
+### Agregar Nuevos Servidores MCP
+
+1. **Instalar servidor MCP**:
+```bash
+npm install @modelcontextprotocol/server-newfeature
+```
+
+2. **Configurar en código**:
+```python
+mcp_config = {
+    "newfeature": {
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-newfeature"],
+        "transport": "stdio"
+    }
+}
+```
+
+### Crear Servidor MCP Personalizado
+
+```python
+# Ejemplo: weather_server.py
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("Weather")
+
+@mcp.tool()
+async def get_weather(location: str) -> str:
+    """Obtener clima de una ubicación"""
+    # Tu lógica aquí
+    return f"Clima en {location}: Soleado, 25°C"
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")
+```
+
+## 🔧 Configuración Avanzada
+
+### Variables de Entorno
+
+```bash
+# .env file
+GOOGLE_API_KEY=tu_api_key_aqui
+MCP_FILESYSTEM_ROOT=/ruta/personalizada
+MCP_ENABLE_LOGS=true
+```
+
+### Configuración de Transporte
+
+```python
+# Configurar transporte HTTP en lugar de stdio
+mcp_config = {
+    "filesystem": {
+        "url": "http://localhost:8000/mcp",
+        "transport": "streamable_http"
+    }
+}
+```
+
+## 🐛 Resolución de Problemas MCP
+
+### Error: "Node.js no encontrado"
+```bash
+# Instalar Node.js
+curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
+
+### Error: "MCP server no responde"
+```bash
+# Verificar que el servidor esté disponible
+npx @modelcontextprotocol/server-filesystem --version
+
+# Verificar permisos de directorio
+ls -la ~/Documents
+```
+
+### Error: "Tool not found"
+```bash
+# Reiniciar cliente MCP
+# Las herramientas se cargan al inicio
+```
+
+## 📋 Requisitos del Sistema
+
+- **Python**: 3.8+
+- **Node.js**: 14+
+- **RAM**: 2GB mínimo, 4GB recomendado
+- **Espacio**: 1GB para modelos y dependencias
+- **OS**: Linux, macOS, Windows 10+
+
+## 🤝 Contribuir
+
+Las contribuciones son bienvenidas, especialmente:
+
+- **Nuevos servidores MCP**
+- **Mejoras de seguridad** 
+- **Optimizaciones de rendimiento**
+- **Documentación**
+- **Tests**
+
+## 📄 Licencia
+
+MIT License - ve el archivo LICENSE para más detalles.
+
+## 🙏 Agradecimientos
+
+- **Anthropic** por el Model Context Protocol
+- **Google** por Gemini API
+- **LangChain** por la integración
+- **Comunidad MCP** por los servidores disponibles
+
+---
+
+### 🔗 Enlaces Útiles
+
+- [Documentación MCP](https://modelcontextprotocol.io/)
+- [Servidores MCP Disponibles](https://github.com/modelcontextprotocol/servers)
+- [LangChain MCP Adapters](https://github.com/langchain-ai/langchain-mcp-adapters)
+- [Google Gemini API](https://ai.google.dev/)
+
+**¡Disfruta usando Aura con el poder de MCP! 🌟** 
