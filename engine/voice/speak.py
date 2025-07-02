@@ -15,12 +15,13 @@ from pygame import mixer, time
 class StreamingTTS:
     def __init__(self):
         """
-        Clase para TTS en streaming paralelo
+        Clase para TTS en streaming con orden secuencial garantizado
         """
         self.text_queue = queue.Queue()
         self.worker_thread = None
         self.is_running = False
         self.synthesizer = None
+        self.audio_lock = threading.Lock()  # Para garantizar orden secuencial
         
     def start(self, synthesizer):
         """
@@ -50,10 +51,11 @@ class StreamingTTS:
     
     def _tts_worker(self):
         """
-        Worker que procesa la cola de texto y reproduce audio
+        Worker que procesa la cola de texto y reproduce audio secuencialmente
         """
         buffer = ""
-        sentence_endings = ['.', '!', '?', '\n']
+        sentence_endings = ['.', '!', '?', '\n', ':', ';']
+        word_count = 0
         
         while self.is_running:
             try:
@@ -62,12 +64,14 @@ class StreamingTTS:
                 if text_chunk is None:  # Señal de fin
                     # Reproducir texto restante en buffer
                     if buffer.strip():
-                        self._speak_chunk(buffer)
+                        self._speak_chunk_sync(buffer.strip())
                     break
                 
                 buffer += text_chunk
+                word_count += len(text_chunk.split())
                 
                 # Buscar final de oración para reproducir
+                sentence_found = False
                 for ending in sentence_endings:
                     if ending in buffer:
                         parts = buffer.split(ending, 1)
@@ -75,30 +79,40 @@ class StreamingTTS:
                         buffer = parts[1] if len(parts) > 1 else ""
                         
                         if sentence.strip():
-                            self._speak_chunk(sentence.strip())
+                            self._speak_chunk_sync(sentence.strip())
+                            word_count = 0
+                            sentence_found = True
                         break
                 
-                # Si el buffer es muy largo, reproducir por fragmentos
-                if len(buffer) > 100:
-                    # Buscar espacio para cortar
-                    last_space = buffer.rfind(' ', 0, 80)
-                    if last_space > 20:
-                        chunk = buffer[:last_space]
-                        buffer = buffer[last_space:].lstrip()
-                        self._speak_chunk(chunk)
+                # Si no hay final de oración pero ya tenemos varias palabras, reproducir
+                if not sentence_found and word_count >= 8:  # Reproducir cada 8 palabras
+                    # Buscar el último espacio para cortar en palabra completa
+                    words = buffer.split()
+                    if len(words) >= 6:
+                        # Tomar las primeras 6 palabras y dejar el resto en buffer
+                        chunk_words = words[:6]
+                        remaining_words = words[6:]
+                        
+                        chunk_text = ' '.join(chunk_words)
+                        buffer = ' '.join(remaining_words)
+                        
+                        if chunk_text.strip():
+                            self._speak_chunk_sync(chunk_text)
+                            word_count = len(remaining_words)
                 
             except queue.Empty:
                 continue
             except Exception as e:
                 print(f"❌ Error en TTS worker: {e}")
-                break  # Salir del loop en caso de error
+                break
     
-    def _speak_chunk(self, text):
+    def _speak_chunk_sync(self, text):
         """
-        Reproduce un fragmento de texto
+        Reproduce un fragmento de texto de forma secuencial (sin paralelo)
         """
         if self.synthesizer and text.strip():
-            self.synthesizer.speak_chunk_async(text)
+            with self.audio_lock:  # Garantizar que solo se reproduce uno a la vez
+                self.synthesizer.speak_chunk_sequential(text)
 
 class VoiceSynthesizer:
     def __init__(self):
@@ -252,6 +266,53 @@ class VoiceSynthesizer:
         
         # Ejecutar en hilo separado
         threading.Thread(target=_async_speak, daemon=True).start()
+    
+    def speak_chunk_sequential(self, text_chunk, lang='es'):
+        """
+        Reproduce un fragmento de texto de forma secuencial (sin hilo separado)
+        Garantiza el orden correcto de reproducción
+        
+        Args:
+            text_chunk (str): Fragmento de texto a reproducir
+            lang (str): Idioma para la síntesis
+        """
+        if not self.initialized:
+            return False
+        
+        if not text_chunk or text_chunk.isspace():
+            return False
+
+        try:
+            # Generar nombre único para evitar conflictos
+            self.audio_counter += 1
+            audio_file = os.path.join(self.temp_dir, f"seq_chunk_{self.audio_counter}.mp3")
+            
+            # Generar audio
+            tts = gTTS(text=text_chunk, lang=lang, slow=False)
+            tts.save(audio_file)
+            
+            # Esperar a que termine la reproducción anterior
+            while mixer.music.get_busy():
+                time_module.sleep(0.05)
+            
+            # Cargar y reproducir
+            mixer.music.load(audio_file)
+            mixer.music.play()
+            
+            # Esperar a que termine la reproducción
+            while mixer.music.get_busy():
+                time_module.sleep(0.05)
+            
+            # Limpiar archivo temporal
+            mixer.music.unload()
+            if os.path.exists(audio_file):
+                os.remove(audio_file)
+            
+            return True
+                
+        except Exception as e:
+            print(f"❌ Error en chunk secuencial: {e}")
+            return False
     
     def is_speaking(self):
         """

@@ -1,43 +1,38 @@
 #!/usr/bin/env python3
 """
-Punto de entrada principal para AuraOllama
-Cliente de Ollama con funcionalidades de voz integradas
+Punto de entrada principal para AuraGemini
+Cliente de Google Gemini con funcionalidades de voz integradas usando LangChain
 """
 
 import sys
-from client import OllamaClient
+from client import GeminiClient
 
 def main():
     """
     Función principal del script
     """
     # Permitir configurar el contexto desde argumentos
-    context_size = 130000  # Máximo para gemma3:4b
+    context_size = 100000  # Contexto para Gemini
     
     # Verificar si se debe deshabilitar la voz
     disable_voice = '--no-voice' in sys.argv
     if disable_voice:
         sys.argv.remove('--no-voice')
     
-    client = OllamaClient(context_size=context_size, enable_voice=not disable_voice)
+    client = GeminiClient(context_size=context_size, enable_voice=not disable_voice)
     
-    # Verificar si el servidor está ejecutándose
+    # Verificar si el modelo está disponible
     if not client.is_server_running():
-        print("❌ Error: El servidor de Ollama no está ejecutándose")
-        print("💡 Asegúrate de que Ollama esté iniciado con: ollama serve")
+        print("❌ Error: El modelo Gemini no se pudo inicializar")
+        print("💡 Verifica tu API key de Google")
         sys.exit(1)
     
-    print("✅ Conectado al servidor de Ollama")
+    print("✅ Conectado a Google Gemini mediante LangChain")
     
     # Listar modelos disponibles
     models = client.list_models()
     if models:
-        print(f"📋 Modelos disponibles: {', '.join(models)}")
-    
-    # Verificar si el modelo está disponible
-    if client.model not in models:
-        print(f"⚠️  Advertencia: El modelo '{client.model}' no se encuentra en la lista")
-        print(f"💡 Puedes descargarlo con: ollama pull {client.model}")
+        print(f"📋 Modelo activo: {', '.join(models)}")
     
     # Mostrar información de contexto
     client.show_context_info()

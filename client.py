@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-import requests
-import json
-import sys
 import os
+import sys
+from typing import List, Dict, Any, Iterator
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.schema import HumanMessage, AIMessage, BaseMessage
+from langchain.callbacks.base import BaseCallbackHandler
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
 # Importar módulos de voz
 try:
@@ -20,25 +23,104 @@ except ImportError as e:
     print(f"⚠️ Módulos de voz no disponibles: {e}")
     print("💡 Instala las dependencias con: pip install -r requirements.txt")
 
-class OllamaClient:
-    def __init__(self, host="localhost", port=11434, context_size=100000, enable_voice=True):
+# Configurar API Key de Google
+os.environ["GOOGLE_API_KEY"] = "YOUR_GOOGLE_API_KEY_HERE"
+
+class StreamingCallbackHandler(BaseCallbackHandler):
+    """
+    Callback handler para manejar streaming de respuestas
+    """
+    def __init__(self, voice_streaming=False, voice_enabled=False):
+        super().__init__()
+        self.voice_streaming = voice_streaming
+        self.voice_enabled = voice_enabled
+        self.streaming_tts = None
+        self.full_response = ""
+        
+    def on_llm_start(self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any) -> None:
+        """Llamado cuando el LLM comienza a generar"""
+        if self.voice_streaming and self.voice_enabled:
+            try:
+                self.streaming_tts = start_streaming_tts()
+                print("🗣️ TTS en paralelo activado (via callbacks)")
+            except Exception as e:
+                print(f"❌ Error al inicializar TTS streaming: {e}")
+                self.streaming_tts = None
+                
+    def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
+        """Llamado cuando se genera un nuevo token"""
+        # Imprimir el token
+        print(token, end='', flush=True)
+        self.full_response += token
+        
+        # Enviar chunk al TTS en paralelo
+        if self.streaming_tts and self.voice_streaming:
+            try:
+                add_text_to_stream(token)
+            except Exception as e:
+                print(f"\n❌ Error en TTS chunk: {e}")
+    
+    def on_llm_error(self, error: Exception, **kwargs: Any) -> None:
+        """Llamado cuando ocurre un error"""
+        print(f"\n❌ Error en LLM: {error}")
+        if self.streaming_tts:
+            try:
+                finish_streaming_tts()
+            except:
+                pass
+                
+    def on_llm_end(self, response, **kwargs: Any) -> None:
+        """Llamado cuando el LLM termina de generar"""
+        # Finalizar TTS streaming
+        if self.streaming_tts:
+            try:
+                finish_streaming_tts()
+            except Exception as e:
+                print(f"\n❌ Error al finalizar TTS streaming: {e}")
+
+class GeminiClient:
+    def __init__(self, context_size=100000, enable_voice=True):
         """
-        Inicializa el cliente de Ollama
+        Inicializa el cliente de Google Gemini usando LangChain
         
         Args:
-            host (str): Dirección del servidor de Ollama (por defecto localhost)
-            port (int): Puerto del servidor de Ollama (por defecto 11434)
-            context_size (int): Tamaño del contexto en tokens (por defecto 130000 para gemma3:4b)
+            context_size (int): Tamaño del contexto en tokens
             enable_voice (bool): Si True, habilita funcionalidades de voz
         """
-        self.base_url = f"http://{host}:{port}"
-        self.model = "gemma3:4b"
+        self.model_name = "gemini-2.0-flash-exp"
         self.context_size = context_size
-        self.conversation_history = []  # Para mantener historial como en terminal
+        self.conversation_history: List[BaseMessage] = []
         
         # Configuración de voz
         self.voice_enabled = enable_voice and VOICE_AVAILABLE
         self.voice_recognizer = None
+        
+        # Inicializar modelo de LangChain
+        try:
+            # Crear el modelo con configuración para streaming
+            self.model = ChatGoogleGenerativeAI(
+                model=self.model_name,
+                max_output_tokens=2048,
+                temperature=0.7,
+                top_p=0.9,
+                top_k=40,
+                convert_system_message_to_human=True  # Para manejar mensajes del sistema
+            )
+            print(f"✅ Modelo {self.model_name} inicializado correctamente")
+        except Exception as e:
+            print(f"❌ Error al inicializar modelo: {e}")
+            # Intentar con un modelo alternativo
+            try:
+                self.model_name = "gemini-1.5-flash"
+                self.model = ChatGoogleGenerativeAI(
+                    model=self.model_name,
+                    max_output_tokens=2048,
+                    temperature=0.7,
+                    convert_system_message_to_human=True
+                )
+                print(f"✅ Modelo alternativo {self.model_name} inicializado")
+            except:
+                self.model = None
         
         if self.voice_enabled:
             self._initialize_voice()
@@ -88,39 +170,27 @@ class OllamaClient:
 
     def is_server_running(self):
         """
-        Verifica si el servidor de Ollama está ejecutándose
+        Verifica si el modelo está disponible
         
         Returns:
-            bool: True si el servidor está activo, False en caso contrario
+            bool: True si el modelo está listo, False en caso contrario
         """
-        try:
-            response = requests.get(f"{self.base_url}/api/tags", timeout=5)
-            return response.status_code == 200
-        except requests.exceptions.RequestException:
-            return False
+        return self.model is not None
     
     def list_models(self):
         """
-        Lista todos los modelos disponibles en Ollama
+        Lista los modelos disponibles (en este caso, solo Gemini)
         
         Returns:
             list: Lista de modelos disponibles
         """
-        try:
-            response = requests.get(f"{self.base_url}/api/tags")
-            if response.status_code == 200:
-                data = response.json()
-                return [model['name'] for model in data.get('models', [])]
-            else:
-                print(f"Error al obtener modelos: {response.status_code}")
-                return []
-        except requests.exceptions.RequestException as e:
-            print(f"Error de conexión: {e}")
-            return []
+        if self.model:
+            return [self.model_name]
+        return []
     
     def generate_response(self, prompt, stream=False, use_history=True, voice_streaming=False):
         """
-        Genera una respuesta usando el modelo especificado
+        Genera una respuesta usando el modelo Gemini
         
         Args:
             prompt (str): El prompt/pregunta para el modelo
@@ -134,53 +204,29 @@ class OllamaClient:
         if not prompt.strip():
             return "Prompt vacío"
             
-        url = f"{self.base_url}/api/generate"
-        
-        # Construir el prompt con historial si está habilitado
-        if use_history and self.conversation_history:
-            full_prompt = self._build_prompt_with_history(prompt)
-        else:
-            full_prompt = prompt
-        
-        # Configuración del modelo
-        payload = {
-            "model": self.model,
-            "prompt": full_prompt,
-            "stream": stream,
-            "options": {
-                "num_ctx": self.context_size,
-                "temperature": 0.7,
-                "top_p": 0.9,
-                "top_k": 40,
-                "num_predict": 128,
-                "stop": ["Usuario:", "Tú:", "Human:", "Assistant:"],
-                "repeat_penalty": 1.1
-            }
-        }
+        if not self.model:
+            return "❌ Error: Modelo no inicializado"
         
         try:
+            # Construir lista de mensajes
+            messages = []
+            
+            # Incluir historial si está habilitado
+            if use_history and self.conversation_history:
+                # Limitar el historial para no exceder el contexto
+                recent_history = self._get_recent_history()
+                messages.extend(recent_history)
+            
+            # Agregar el mensaje actual
+            messages.append(HumanMessage(content=prompt))
+            
             if stream:
-                response_text = self._stream_response(url, payload, voice_streaming)
+                response_text = self._stream_response(messages, voice_streaming)
             else:
-                response = requests.post(url, json=payload)
-                if response.status_code != 200:
-                    error_msg = f"Error: {response.status_code} - {response.text}"
-                    print(error_msg)
-                    return error_msg
-                    
-                try:
-                    data = response.json()
-                except json.JSONDecodeError as e:
-                    error_msg = f"Error decodificando respuesta: {e}"
-                    print(error_msg)
-                    return error_msg
-                    
-                if 'error' in data:
-                    error_msg = f"Error del modelo: {data['error']}"
-                    print(error_msg)
-                    return error_msg
-                    
-                response_text = data.get('response', '')
+                # Respuesta sin streaming
+                response = self.model.invoke(messages)
+                response_text = response.content
+                
                 if not response_text.strip():
                     print("⚠️ La respuesta del modelo está vacía")
                     return "Sin respuesta"
@@ -192,37 +238,22 @@ class OllamaClient:
             
             return response_text
             
-        except requests.exceptions.RequestException as e:
-            error_msg = f"Error de conexión: {e}"
+        except Exception as e:
+            error_msg = f"❌ Error al generar respuesta: {e}"
             print(error_msg)
             return error_msg
     
-    def _build_prompt_with_history(self, current_prompt):
+    def _get_recent_history(self):
         """
-        Construye un prompt que incluye el historial de conversación
+        Obtiene el historial reciente limitado por contexto
         
-        Args:
-            current_prompt (str): El prompt actual del usuario
-            
         Returns:
-            str: Prompt completo con historial
+            list: Lista de mensajes recientes
         """
-        # Limitar el número de mensajes en el historial para evitar sobrecargar el contexto
-        max_history_messages = 10  # Ajustar según necesidad
-        recent_history = self.conversation_history[-max_history_messages:] if len(self.conversation_history) > max_history_messages else self.conversation_history
-        
-        history_text = "A continuación hay una conversación entre un humano y un asistente de IA.\n\n"
-        
-        for entry in recent_history:
-            if entry['role'] == 'user':
-                history_text += f"Humano: {entry['content']}\n\n"
-            else:
-                history_text += f"Asistente: {entry['content']}\n\n"
-        
-        # Agregar el prompt actual
-        history_text += f"Humano: {current_prompt}\n\nAsistente:"
-        
-        return history_text
+        max_history_messages = 10
+        if len(self.conversation_history) > max_history_messages:
+            return self.conversation_history[-max_history_messages:]
+        return self.conversation_history
     
     def _add_to_history(self, role, content):
         """
@@ -232,12 +263,12 @@ class OllamaClient:
             role (str): 'user' o 'assistant'
             content (str): El contenido del mensaje
         """
-        self.conversation_history.append({
-            "role": role,
-            "content": content
-        })
+        if role == "user":
+            self.conversation_history.append(HumanMessage(content=content))
+        else:
+            self.conversation_history.append(AIMessage(content=content))
         
-        # Mantener el historial dentro del límite de contexto
+        # Mantener el historial dentro del límite
         self._trim_history_if_needed()
     
     def _trim_history_if_needed(self):
@@ -245,13 +276,13 @@ class OllamaClient:
         Recorta el historial si excede el límite de contexto
         """
         # Estimación aproximada: 1 token ≈ 4 caracteres
-        total_chars = sum(len(entry['content']) for entry in self.conversation_history)
+        total_chars = sum(len(msg.content) for msg in self.conversation_history)
         max_chars = self.context_size * 3  # Dejar espacio para la respuesta
         
         while total_chars > max_chars and len(self.conversation_history) > 2:
             # Remover las entradas más antiguas (pero mantener al menos 1 par)
             removed = self.conversation_history.pop(0)
-            total_chars -= len(removed['content'])
+            total_chars -= len(removed.content)
     
     def clear_history(self):
         """
@@ -265,36 +296,32 @@ class OllamaClient:
         Muestra información sobre el contexto configurado
         """
         print(f"📊 Información de Contexto:")
-        print(f"   • Modelo: {self.model}")
+        print(f"   • Modelo: {self.model_name}")
         print(f"   • Contexto configurado: {self.context_size:,} tokens")
         print(f"   • Historial: {len(self.conversation_history)} mensajes")
         
         if self.conversation_history:
-            total_chars = sum(len(entry['content']) for entry in self.conversation_history)
+            total_chars = sum(len(msg.content) for msg in self.conversation_history)
             estimated_tokens = total_chars // 4
             print(f"   • Tokens estimados en historial: {estimated_tokens:,}")
             usage_percent = (estimated_tokens / self.context_size) * 100
             print(f"   • Uso del contexto: {usage_percent:.1f}%")
     
-    def _stream_response(self, url, payload, enable_voice_streaming=False):
+    def _stream_response(self, messages, enable_voice_streaming=False):
         """
         Maneja las respuestas en streaming
         
         Args:
-            url (str): URL del endpoint
-            payload (dict): Datos a enviar
+            messages (list): Lista de mensajes para el modelo
             enable_voice_streaming (bool): Si True, activa TTS en paralelo
             
         Returns:
             str: Respuesta completa
         """
         try:
-            response = requests.post(url, json=payload, stream=True)
-            if response.status_code != 200:
-                error_msg = f"Error: {response.status_code} - {response.text}"
-                print(error_msg)
-                return error_msg
+            print("Respuesta del modelo (streaming):")
             
+            # Buffer para acumular la respuesta completa
             full_response = ""
             streaming_tts = None
             
@@ -307,42 +334,48 @@ class OllamaClient:
                     print(f"❌ Error al inicializar TTS streaming: {e}")
                     streaming_tts = None
             
-            print("Respuesta del modelo (streaming):")
+            # Usar el método stream() nativo de LangChain
             try:
-                for line in response.iter_lines():
-                    if not line:
-                        continue
+                # El método stream() ya está implementado en ChatGoogleGenerativeAI
+                for chunk in self.model.stream(messages):
+                    # Cada chunk es un AIMessageChunk con contenido
+                    chunk_content = ""
+                    if hasattr(chunk, 'content'):
+                        chunk_content = chunk.content
+                    elif isinstance(chunk, str):
+                        chunk_content = chunk
+                    
+                    if chunk_content:
+                        print(chunk_content, end='', flush=True)
+                        full_response += chunk_content
                         
-                    try:
-                        data = json.loads(line.decode('utf-8'))
-                    except json.JSONDecodeError as e:
-                        print(f"\n❌ Error decodificando respuesta: {e}")
-                        continue
-                    
-                    if 'error' in data:
-                        error_msg = f"\n❌ Error del modelo: {data['error']}"
-                        print(error_msg)
-                        return error_msg
-                    
-                    if 'response' in data:
-                        chunk = data['response']
-                        if chunk:  # Solo procesar si hay contenido
-                            print(chunk, end='', flush=True)
-                            full_response += chunk
-                            
-                            # Enviar chunk al TTS en paralelo
-                            if streaming_tts:
-                                try:
-                                    add_text_to_stream(chunk)
-                                except Exception as e:
-                                    print(f"\n❌ Error en TTS chunk: {e}")
-                    
-                    if data.get('done', False):
-                        break
-                        
+                        # Enviar chunk al TTS en paralelo
+                        if streaming_tts:
+                            try:
+                                add_text_to_stream(chunk_content)
+                            except Exception as e:
+                                print(f"\n❌ Error en TTS chunk: {e}")
+                                
             except Exception as e:
-                print(f"\n❌ Error procesando respuesta streaming: {e}")
-                return f"Error en streaming: {e}"
+                # Si hay algún error con streaming, usar invoke normal
+                print(f"\n⚠️ Error en streaming ({e}), usando modo no-streaming...")
+                
+                # Usar invoke normal sin streaming
+                response = self.model.invoke(messages)
+                
+                if hasattr(response, 'content'):
+                    full_response = response.content
+                    print(full_response)
+                else:
+                    full_response = str(response)
+                    print(full_response)
+                
+                # Reproducir la respuesta completa con TTS si está habilitado
+                if streaming_tts and full_response:
+                    try:
+                        add_text_to_stream(full_response)
+                    except Exception as e:
+                        print(f"\n❌ Error en TTS: {e}")
             
             # Finalizar TTS streaming
             if streaming_tts:
@@ -351,24 +384,25 @@ class OllamaClient:
                 except Exception as e:
                     print(f"\n❌ Error al finalizar TTS streaming: {e}")
             
+            print()  # Nueva línea al final
+            
             if not full_response.strip():
                 print("\n⚠️ La respuesta del modelo está vacía")
                 return "Sin respuesta"
                 
-            print()  # Nueva línea al final
             return full_response
             
-        except requests.exceptions.RequestException as e:
-            error_msg = f"Error de conexión: {e}"
-            print(error_msg)
+        except Exception as e:
+            error_msg = f"Error en streaming: {e}"
+            print(f"\n❌ {error_msg}")
             return error_msg
     
     def chat(self):
         """
         Inicia una sesión de chat interactiva
         """
-        print(f"🤖 Cliente de Ollama - Modelo: {self.model}")
-        print(f"🧠 Contexto: {self.context_size:,} tokens (como en terminal)")
+        print(f"🤖 Cliente Gemini - Modelo: {self.model_name}")
+        print(f"🧠 Contexto: {self.context_size:,} tokens")
         print("🎬 Streaming: ACTIVADO por defecto")
         
         if self.voice_enabled:
@@ -452,7 +486,7 @@ class OllamaClient:
                 if not user_input:
                     continue
                 
-                print(f"\n🤖 {self.model}:", end=" ")
+                print(f"\n🤖 {self.model_name}:", end=" ")
                 if use_stream:
                     # Si el streaming de voz está activado, no reproducir después
                     voice_after_stream = use_voice_output and not use_voice_streaming
@@ -492,10 +526,13 @@ class OllamaClient:
         
         print("📝 Historial de conversación:")
         print("-" * 40)
-        for i, entry in enumerate(self.conversation_history, 1):
-            role_icon = "👤" if entry['role'] == 'user' else "🤖"
-            role_name = "Tú" if entry['role'] == 'user' else self.model
-            content = entry['content'][:100] + "..." if len(entry['content']) > 100 else entry['content']
+        for i, msg in enumerate(self.conversation_history, 1):
+            role_icon = "👤" if isinstance(msg, HumanMessage) else "🤖"
+            role_name = "Tú" if isinstance(msg, HumanMessage) else self.model_name
+            content = msg.content[:100] + "..." if len(msg.content) > 100 else msg.content
             print(f"{i}. {role_icon} {role_name}: {content}")
+
+# Alias para mantener compatibilidad con el código existente
+OllamaClient = GeminiClient
 
  
