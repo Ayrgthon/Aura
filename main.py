@@ -1,182 +1,258 @@
 #!/usr/bin/env python3
 """
-Punto de entrada principal para AuraGemini
-Cliente de Google Gemini con funcionalidades de voz integradas usando LangChain
+Aura - Asistente de IA con Voz y MCP
+Soporta Google Gemini y Ollama con herramientas MCP
 """
 
 import os
-import sys
 import asyncio
 import warnings
-from pathlib import Path
+from client import AuraClient
+from engine.voice.hear import initialize_recognizer, listen_for_command
 
-# Silenciar warnings molestos
-warnings.filterwarnings("ignore", message="Convert_system_message_to_human will be deprecated!")
-warnings.filterwarnings("ignore", category=UserWarning)
-
-# Silenciar mensajes de schema de MCP
-import logging
-logging.getLogger().setLevel(logging.ERROR)
-
-# Redirigir stderr temporalmente para silenciar mensajes de Key schema
-import io
-from contextlib import redirect_stderr
-
-# Agregar el directorio actual al path de Python
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
-
-try:
-    from client import GeminiClient
-    from engine.voice.hear import initialize_recognizer, listen_for_command
-except ImportError as e:
-    print(f"❌ Error de importación: {e}")
-    print("💡 Asegúrate de tener todas las dependencias instaladas")
-    print("💡 Ejecuta: pip install -r requirements.txt")
-    sys.exit(1)
+# Silenciar warnings
+warnings.filterwarnings("ignore")
 
 class AuraAssistant:
     def __init__(self):
-        """Inicializar el asistente Aura con soporte MCP"""
-        self.client = GeminiClient()
+        """Inicializa el asistente Aura"""
+        self.client = None
         self.voice_recognizer = None
-        self.mcp_enabled = False
         
-    async def setup_mcp(self, custom_configs=None):
-        """
-        Configurar servidores MCP
+    def setup_model(self):
+        """Configura el modelo LLM a usar"""
+        print("🤖 Configuración de Modelo LLM")
+        print("=" * 50)
+        print("Modelos disponibles:")
+        print("1. 🟢 Google Gemini (gemini-2.0-flash-exp)")
+        print("2. 🦙 Ollama (qwen2.5-coder:7b)")
+        print("3. 🛠️  Personalizado")
         
-        Args:
-            custom_configs: Configuraciones personalizadas de MCP
-        """
-        print("🔧 Configurando servidores MCP...")
+        while True:
+            try:
+                choice = input("\nSelecciona un modelo (1-3): ").strip()
+                
+                if choice == "1":
+                    # Google Gemini
+                    model_type = "gemini"
+                    model_name = "gemini-2.0-flash-exp"
+                    print(f"✅ Seleccionado: Google Gemini ({model_name})")
+                    break
+                    
+                elif choice == "2":
+                    # Ollama
+                    model_type = "ollama"
+                    model_name = "qwen2.5-coder:7b"
+                    print(f"✅ Seleccionado: Ollama ({model_name})")
+                    break
+                    
+                elif choice == "3":
+                    # Personalizado
+                    print("\nConfiguración personalizada:")
+                    model_type = input("Tipo de modelo (gemini/ollama): ").strip().lower()
+                    
+                    if model_type not in ["gemini", "ollama"]:
+                        print("❌ Tipo de modelo no válido")
+                        continue
+                        
+                    if model_type == "gemini":
+                        print("Ejemplos: gemini-1.5-flash, gemini-1.5-pro, gemini-2.0-flash-exp")
+                        model_name = input("Nombre del modelo: ").strip()
+                    else:
+                        print("Ejemplos: qwen2.5-coder:7b, llama3.2:latest, codellama:latest")
+                        model_name = input("Nombre del modelo: ").strip()
+                    
+                    if not model_name:
+                        print("❌ Nombre de modelo no puede estar vacío")
+                        continue
+                        
+                    print(f"✅ Configuración personalizada: {model_type.upper()} ({model_name})")
+                    break
+                    
+                else:
+                    print("❌ Opción no válida. Selecciona 1, 2 o 3.")
+                    
+            except KeyboardInterrupt:
+                print("\n👋 ¡Hasta luego!")
+                exit(0)
         
-        if custom_configs is None:
-            # Configuración por defecto - solo usar directorios que existen
-            home_dir = os.path.expanduser("~")
-            allowed_dirs = [home_dir]
-            
-            # Agregar directorios comunes solo si existen
-            common_dirs = [
-                f"{home_dir}/Documents",
-                f"{home_dir}/Documentos",  # Para sistemas en español
-                f"{home_dir}/Desktop",
-                f"{home_dir}/Escritorio",  # Para sistemas en español  
-                f"{home_dir}/Downloads",
-                f"{home_dir}/Descargas",   # Para sistemas en español
-                "/tmp"  # Directorio temporal siempre existe
-            ]
-            
-            for directory in common_dirs:
-                if os.path.exists(directory):
-                    allowed_dirs.append(directory)
-            
-            custom_configs = {
-                "filesystem": {
-                    "command": "npx",
-                    "args": [
-                        "-y",
-                        "@modelcontextprotocol/server-filesystem"
-                    ] + allowed_dirs,  # Usar solo directorios que existen
-                    "transport": "stdio"
-                }
-            }
-            
-            print(f"📁 Directorios MCP permitidos: {allowed_dirs}")
-        
-        self.mcp_enabled = await self.client.setup_mcp_servers(custom_configs)
-        
-        if self.mcp_enabled:
-            print("✅ MCPs configurados correctamente")
-            print("🎯 Ahora puedes pedirme que:")
-            print("  - Liste archivos en tu sistema")
-            print("  - Lea el contenido de archivos")
-            print("  - Cree o modifique archivos")
-            print("  - Busque archivos por nombre")
-            print("  - Obtenga información de archivos")
-        else:
-            print("⚠️  MCPs no disponibles - funcionando solo con capacidades básicas")
+        return model_type, model_name
     
     def setup_voice(self):
-        """Configurar reconocimiento de voz"""
-        try:
-            self.voice_recognizer = initialize_recognizer()
-            if self.voice_recognizer:
-                print("🎤 Reconocimiento de voz activado")
-                return True
-            else:
-                print("⚠️  No se pudo activar el reconocimiento de voz")
-                return False
-        except Exception as e:
-            print(f"⚠️  No se pudo activar el reconocimiento de voz: {e}")
+        """Configura las capacidades de voz"""
+        print("\n🎤 Configuración de Voz")
+        print("=" * 30)
+        
+        while True:
+            try:
+                choice = input("¿Habilitar funcionalidades de voz? (s/n): ").strip().lower()
+                
+                if choice in ['s', 'si', 'sí', 'y', 'yes']:
+                    print("🎤 Inicializando reconocimiento de voz...")
+                    try:
+                        self.voice_recognizer = initialize_recognizer()
+                        if self.voice_recognizer:
+                            print("✅ Reconocimiento de voz activado")
+                            return True
+                        else:
+                            print("⚠️  No se pudo inicializar el reconocimiento de voz")
+                            print("ℹ️  Continuando sin funcionalidades de voz")
+                            return False
+                    except Exception as e:
+                        print(f"❌ Error configurando voz: {e}")
+                        print("ℹ️  Continuando sin funcionalidades de voz")
+                        return False
+                        
+                elif choice in ['n', 'no']:
+                    print("✅ Modo sin voz seleccionado")
+                    return False
+                    
+                else:
+                    print("❌ Respuesta no válida. Usa 's' para sí o 'n' para no.")
+                    
+            except KeyboardInterrupt:
+                print("\n👋 ¡Hasta luego!")
+                exit(0)
+    
+    async def setup_mcp(self):
+        """Configura los servidores MCP"""
+        print("\n🔧 Configuración de MCP (Model Context Protocol)")
+        print("=" * 55)
+        
+        # Detectar directorios existentes para la configuración
+        home_dir = os.path.expanduser("~")
+        possible_dirs = [
+            (home_dir, "home"),
+            (f"{home_dir}/Documents", "Documents"),
+            (f"{home_dir}/Documentos", "Documentos"),
+            (f"{home_dir}/Desktop", "Desktop"),
+            (f"{home_dir}/Escritorio", "Escritorio"),
+            (f"{home_dir}/Descargas", "Descargas"),
+            (f"{home_dir}/Downloads", "Downloads"),
+            ("/tmp", "temporal")
+        ]
+        
+        # Filtrar solo directorios que existen
+        allowed_dirs = []
+        for dir_path, description in possible_dirs:
+            if os.path.exists(dir_path):
+                allowed_dirs.append(dir_path)
+                print(f"📁 Directorio detectado: {description} ({dir_path})")
+        
+        if not allowed_dirs:
+            print("⚠️  No se encontraron directorios para MCP filesystem")
+            return False
+        
+        print(f"\n✅ {len(allowed_dirs)} directorios configurados para acceso MCP")
+        
+        # Configuración de servidores MCP
+        mcp_config = {
+            "filesystem": {
+                "command": "npx",
+                "args": ["-y", "@modelcontextprotocol/server-filesystem"] + allowed_dirs,
+                "transport": "stdio"
+            }
+        }
+        
+        print("🚀 Configurando servidores MCP...")
+        success = await self.client.setup_mcp_servers(mcp_config)
+        
+        if success:
+            print("✅ Servidores MCP configurados correctamente")
+            return True
+        else:
+            print("⚠️  MCP no disponible, continuando sin herramientas de archivos")
             return False
     
-    async def start_chat(self):
-        """Iniciar el loop principal de chat"""
-        print("🚀 ¡Aura está listo!")
-        print("💬 Escribe 'quit' para salir")
-        print("🎤 Escribe 'voice' para usar reconocimiento de voz")
-        
-        if self.mcp_enabled:
-            print("🔧 Herramientas MCP disponibles - ¡Prueba comandos como 'lista mis archivos'!")
+    async def run_interactive_mode(self):
+        """Ejecuta el modo interactivo"""
+        print("\n🗣️  Modo Interactivo Activado")
+        print("=" * 35)
+        print("Comandos disponibles:")
+        print("  • 'salir' o 'exit' - Terminar")
+        print("  • 'escuchar' - Entrada por voz (si está disponible)")
+        print("  • 'limpiar' - Limpiar historial")
+        print("-" * 50)
         
         while True:
             try:
                 # Obtener entrada del usuario
                 user_input = input("\n👤 Tú: ").strip()
                 
-                if user_input.lower() in ['quit', 'exit', 'salir']:
+                # Comandos especiales
+                if user_input.lower() in ['salir', 'exit', 'quit']:
                     print("👋 ¡Hasta luego!")
                     break
                 
-                if user_input.lower() == 'voice':
-                    if not self.voice_recognizer:
-                        if not self.setup_voice():
-                            print("❌ No se pudo activar reconocimiento de voz")
-                            continue
-                    
+                if user_input.lower() in ['limpiar', 'clear']:
+                    self.client.conversation_history = []
+                    print("🗑️  Historial limpiado")
+                    continue
+                
+                if user_input.lower() in ['escuchar', 'listen'] and self.voice_recognizer:
                     print("🎤 Escuchando... (habla ahora)")
-                    voice_input = listen_for_command(self.voice_recognizer)
-                    
-                    if not voice_input:
-                        print("❌ No se detectó audio")
+                    voice_text = listen_for_command(self.voice_recognizer, timeout=10)
+                    if voice_text:
+                        user_input = voice_text
+                        print(f"👤 Tú (por voz): {user_input}")
+                    else:
+                        print("🔇 No se detectó entrada de voz")
                         continue
-                    
-                    print(f"👤 Tú (voz): {voice_input}")
-                    user_input = voice_input
                 
                 if not user_input:
                     continue
                 
-                # Obtener respuesta del asistente
-                print("🤖 Aura: ", end="", flush=True)
-                response = await self.client.chat_with_voice(user_input)
+                # Procesar con el cliente
+                print(f"\n🤖 {self.client.model_type.upper()}:", end=" ")
+                await self.client.chat_with_voice(user_input)
                 
             except KeyboardInterrupt:
                 print("\n👋 ¡Hasta luego!")
                 break
             except Exception as e:
-                print(f"\n❌ Error: {e}")
+                print(f"❌ Error: {e}")
+    
+    async def main(self):
+        """Función principal del asistente"""
+        print("🌟 AURA - Asistente de IA Universal")
+        print("Soporte para Gemini, Ollama y MCP")
+        print("=" * 50)
+        
+        try:
+            # 1. Configurar modelo
+            model_type, model_name = self.setup_model()
+            
+            # 2. Configurar voz
+            enable_voice = self.setup_voice()
+            
+            # 3. Inicializar cliente
+            print(f"\n🚀 Inicializando cliente {model_type.upper()}...")
+            self.client = AuraClient(
+                model_type=model_type,
+                model_name=model_name,
+                enable_voice=enable_voice
+            )
+            
+            # 4. Configurar MCP
+            await self.setup_mcp()
+            
+            # 5. Ejecutar modo interactivo
+            await self.run_interactive_mode()
+            
+        except Exception as e:
+            print(f"❌ Error crítico: {e}")
+            return 1
+        
+        return 0
 
-async def main():
-    """Función principal"""
-    print("🌟 === AURA - Asistente IA con MCP ===")
-    
-    # Crear asistente
+def main():
+    """Punto de entrada principal"""
     assistant = AuraAssistant()
-    
-    # Configurar MCPs
-    await assistant.setup_mcp()
-    
-    # Iniciar chat
-    await assistant.start_chat()
+    try:
+        return asyncio.run(assistant.main())
+    except KeyboardInterrupt:
+        print("\n👋 ¡Hasta luego!")
+        return 0
 
 if __name__ == "__main__":
-    try:
-        # Ejecutar el asistente
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\n👋 ¡Programa terminado por el usuario!")
-    except Exception as e:
-        print(f"❌ Error crítico: {e}")
-        sys.exit(1) 
+    exit(main()) 

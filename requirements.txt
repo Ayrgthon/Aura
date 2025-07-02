@@ -4,6 +4,7 @@ requests>=2.31.0
 # Dependencias para LangChain y Google Generative AI
 langchain>=0.1.0
 langchain-google-genai>=1.0.0
+langchain-ollama>=0.1.0
 
 # Dependencias para reconocimiento de voz (STT)
 sounddevice>=0.4.6
