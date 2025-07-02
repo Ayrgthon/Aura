@@ -4,6 +4,10 @@ import sys
 import asyncio
 import threading
 import tempfile
+import warnings
+import logging
+from io import StringIO
+from contextlib import redirect_stderr, redirect_stdout
 from gtts import gTTS
 import pygame
 from typing import List, Dict, Any, Iterator, Optional
@@ -11,6 +15,16 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.schema import HumanMessage, AIMessage, BaseMessage
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
+# Silenciar todos los warnings molestos
+warnings.filterwarnings("ignore", message="Convert_system_message_to_human will be deprecated!")
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+# Configurar logging para silenciar mensajes de schema
+logging.getLogger("langchain").setLevel(logging.ERROR)
+logging.getLogger("langchain_core").setLevel(logging.ERROR)
+logging.getLogger("langchain_google_genai").setLevel(logging.ERROR)
 
 # Importar módulos de voz
 try:
@@ -754,7 +768,7 @@ class GeminiClient:
     
     async def _execute_mcp_tool(self, tool_call: Dict[str, Any]) -> str:
         """
-        Ejecuta una herramienta MCP
+        Ejecuta una herramienta MCP silenciando mensajes de schema
         
         Args:
             tool_call: Información de la llamada a la herramienta
@@ -778,13 +792,18 @@ class GeminiClient:
         if not target_tool:
             raise Exception(f"Herramienta '{tool_name}' no encontrada")
         
-        # Ejecutar la herramienta usando LangChain de forma asíncrona
+        # Ejecutar la herramienta silenciando mensajes de schema
         try:
-            result = await target_tool.ainvoke(tool_args)
+            # Capturar stderr para silenciar mensajes de "Key" y "$schema"
+            captured_stderr = StringIO()
+            with redirect_stderr(captured_stderr):
+                result = await target_tool.ainvoke(tool_args)
         except Exception as e:
             # Fallback a invoke si ainvoke no funciona
             try:
-                result = target_tool.invoke(tool_args)
+                captured_stderr = StringIO()
+                with redirect_stderr(captured_stderr):
+                    result = target_tool.invoke(tool_args)
             except Exception as e2:
                 raise Exception(f"Error ejecutando herramienta: {e2}")
         

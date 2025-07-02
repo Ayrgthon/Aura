@@ -7,7 +7,20 @@ Cliente de Google Gemini con funcionalidades de voz integradas usando LangChain
 import os
 import sys
 import asyncio
+import warnings
 from pathlib import Path
+
+# Silenciar warnings molestos
+warnings.filterwarnings("ignore", message="Convert_system_message_to_human will be deprecated!")
+warnings.filterwarnings("ignore", category=UserWarning)
+
+# Silenciar mensajes de schema de MCP
+import logging
+logging.getLogger().setLevel(logging.ERROR)
+
+# Redirigir stderr temporalmente para silenciar mensajes de Key schema
+import io
+from contextlib import redirect_stderr
 
 # Agregar el directorio actual al path de Python
 project_root = Path(__file__).parent
