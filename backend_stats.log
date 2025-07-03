@@ -1,4 +1,45 @@
-  File "/home/ary/Documentos/Aura_Ollama/system_stats_api.py", line 127
-    return float(val)
-    ^^^^^^
-IndentationError: expected an indented block after 'try' statement on line 126
+INFO:     Started server process [1746]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:43166 - "GET / HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:34748 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34760 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34776 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34784 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34748 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34760 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34776 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34784 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34748 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34760 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34776 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34784 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34748 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34760 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34776 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34784 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34748 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34760 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34776 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34784 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34748 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34760 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34776 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34784 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34748 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34760 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34776 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34784 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34748 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34760 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34776 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34784 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34748 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34760 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34776 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34784 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34748 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34760 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34776 - "GET /system-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34784 - "GET /system-stats HTTP/1.1" 200 OK

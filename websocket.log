@@ -1,9 +1,9 @@
 INFO:__main__:🚀 Servidor WebSocket INTEGRADO iniciado en ws://localhost:8765
 INFO:__main__:📡 Listo para conexiones (voz y Aura se cargan bajo demanda)
-INFO:websockets.server:server listening on [::1]:8765
 INFO:websockets.server:server listening on 127.0.0.1:8765
+INFO:websockets.server:server listening on [::1]:8765
 INFO:websockets.server:connection open
-INFO:__main__:🔌 Cliente conectado desde: ('127.0.0.1', 46226)
+INFO:__main__:🔌 Cliente conectado desde: ('127.0.0.1', 54716)
 INFO:__main__:Cargando módulos de voz...
 INFO:__main__:Inicializando reconocimiento de voz...
 LOG (VoskAPI:ReadDataFiles():model.cc:213) Decoding params beam=13 max-active=7000 lattice-beam=6
@@ -26,8 +26,7 @@ Brave Search MCP Server running on stdio
 Secure MCP Filesystem Server running on stdio
 Allowed directories: [ '/home/ary' ]
 INFO:__main__:✅ Cliente Aura inicializado correctamente con gemini: gemini-2.0-flash-exp
-INFO:__main__:🎤 Texto reconocido: hola quién eres
-INFO:__main__:Inicializando cliente Aura con gemini: gemini-2.5-pro...
+INFO:__main__:Inicializando cliente Aura con gemini: gemini-2.5-flash...
 Brave Search MCP Server running on stdio
 Secure MCP Filesystem Server running on stdio
 Allowed directories: [ '/home/ary' ]
@@ -59,53 +58,7 @@ Hello from the pygame community. https://www.pygame.org/contribute.html
 - Ratings and review counts
 - Phone numbers and opening hours
 Use this when the query implies 'near me' or mentions specific locations. Automatically falls back to web search if no local results are found.
-🎤 Escuchando... (Habla ahora)
-👂 Escuché: 'hola quién eres'
-🔧 Usando 14 herramientas MCP con GEMINI
-❌ Error en procesamiento MCP: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. [violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
-  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash-exp"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-  quota_value: 50
-}
-, links {
-  description: "Learn more about Gemini API quotas"
-  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
-}
-, retry_delay {
-  seconds: 39
-}
-]
-🤖 Usando GEMINI sin herramientas MCP
-❌ Error en chat simple: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. [violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
-  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.0-flash-exp"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-  quota_value: 50
-}
-, links {
-  description: "Learn more about Gemini API quotas"
-  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
-}
-, retry_delay {
-  seconds: 36
-}
-]
-🤖 Inicializando Google Gemini: gemini-2.5-pro
+🤖 Inicializando Google Gemini: gemini-2.5-flash
 🎤 Sistema de voz activado
 ✅ Cliente Aura inicializado con GEMINI
 ✅ MCPs configurados correctamente. 14 herramientas disponibles:
@@ -113,13 +66,13 @@ Use this when the query implies 'near me' or mentions specific locations. Automa
   - read_multiple_files: Read the contents of multiple files simultaneously. This is more efficient than reading files one by one when you need to analyze or compare multiple files. Each file's content is returned with its path as a reference. Failed reads for individual files won't stop the entire operation. Only works within allowed directories.
   - write_file: Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding. Only works within allowed directories.
   - edit_file: Make line-based edits to a text file. Each edit replaces exact line sequences with new content. Returns a git-style diff showing the changes made. Only works within allowed directories.
-  - create_directory: Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist. Only works within allowed directories.INFO:__main__:✅ Cliente Aura inicializado correctamente con gemini: gemini-2.5-pro
-INFO:__main__:🎤 Texto reconocido: hola quién eres
-
+  - create_directory: Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist. Only works within allowed directories.
   - list_directory: Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory. Only works within allowed directories.
   - list_directory_with_sizes: Get a detailed listing of all files and directories in a specified path, including sizes. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is useful for understanding directory structure and finding specific files within a directory. Only works within allowed directories.
   - directory_tree: Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability. Only works within allowed directories.
-  - move_file: Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.
+  - move_file: Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.INFO:__main__:✅ Cliente Aura inicializado correctamente con gemini: gemini-2.5-flash
+INFO:__main__:🎤 Texto reconocido: hola quién eres
+
   - search_files: Recursively search for files and directories matching a pattern. Searches through all subdirectories from the starting path. The search is case-insensitive and matches partial names. Returns full paths to all matching items. Great for finding files when you don't know their exact location. Only searches within allowed directories.
   - get_file_info: Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type. This tool is perfect for understanding file characteristics without reading the actual content. Only works within allowed directories.
   - list_allowed_directories: Returns the list of directories that this server is allowed to access. Use this to understand which directories are available before trying to access files.
@@ -132,4 +85,4 @@ Use this when the query implies 'near me' or mentions specific locations. Automa
 🎤 Escuchando... (Habla ahora)
 👂 Escuché: 'hola quién eres'
 🔧 Usando 14 herramientas MCP con GEMINI
-Soy un modelo de lenguaje grande, entrenado por Google.
+Hola, soy un modelo de lenguaje grande, entrenado por Google.
