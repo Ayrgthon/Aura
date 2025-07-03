@@ -188,6 +188,8 @@ class IntegratedAuraWebSocketHandler:
         elif msg_type == "process_text":
             text = data.get("text", "")
             await self.process_with_aura(websocket, text)
+        elif msg_type == "shutdown_system":
+            await self.handle_system_shutdown(websocket)
         else:
             await websocket.send(json.dumps({
                 "type": "error",
@@ -288,6 +290,45 @@ class IntegratedAuraWebSocketHandler:
                 "type": "error",
                 "message": f"Error procesando texto: {str(e)}"
             }))
+    
+    async def handle_system_shutdown(self, websocket):
+        """Maneja el apagado del sistema de forma ordenada"""
+        try:
+            await websocket.send(json.dumps({
+                "type": "status",
+                "message": "Iniciando apagado del sistema..."
+            }))
+            
+            # Limpiar recursos
+            if self.voice_initialized:
+                logger.info("🔇 Cerrando sistema de voz...")
+                self.voice_initialized = False
+            
+            if self.aura_initialized:
+                logger.info("🤖 Cerrando cliente Aura...")
+                self.aura_initialized = False
+                self.aura_client = None
+            
+            await websocket.send(json.dumps({
+                "type": "shutdown_complete",
+                "message": "Sistema apagado correctamente"
+            }))
+            
+            logger.info("✅ Apagado del sistema completado")
+            
+            # Cerrar la conexión WebSocket después de un pequeño delay
+            await asyncio.sleep(0.5)
+            await websocket.close()
+            
+        except Exception as e:
+            logger.error(f"❌ Error durante apagado: {e}")
+            try:
+                await websocket.send(json.dumps({
+                    "type": "error",
+                    "message": f"Error durante apagado: {str(e)}"
+                }))
+            except:
+                pass
     
     async def start_listening(self, websocket):
         """Inicia el reconocimiento de voz"""

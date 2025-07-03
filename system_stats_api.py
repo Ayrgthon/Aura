@@ -165,6 +165,117 @@ def system_stats():
         "gpu": gpu
     }
 
+@app.post("/shutdown")
+def shutdown_system():
+    """Apaga todos los servicios del sistema Aura"""
+    try:
+        import signal
+        
+        # Matar procesos específicos de Aura (excepto esta API para poder recibir comandos de encendido)
+        processes_to_kill = [
+            "websocket_server_simple.py",
+            "websocket_server.py", 
+            "python main.py"
+        ]
+        
+        killed_processes = []
+        
+        for process_name in processes_to_kill:
+            try:
+                # Método 1: Obtener PIDs específicos y matarlos directamente
+                pids = []
+                
+                # Buscar procesos que coincidan con el nombre
+                result = subprocess.run(
+                    ["pgrep", "-f", process_name], 
+                    capture_output=True, 
+                    text=True
+                )
+                
+                if result.returncode == 0:
+                    pids.extend(result.stdout.strip().split('\n'))
+                
+                # También buscar con ruta completa
+                result = subprocess.run(
+                    ["pgrep", "-f", f"./venv/bin/python {process_name}"], 
+                    capture_output=True, 
+                    text=True
+                )
+                
+                if result.returncode == 0:
+                    pids.extend(result.stdout.strip().split('\n'))
+                
+                # Remover duplicados y PIDs vacíos
+                pids = list(set([pid for pid in pids if pid and pid.isdigit()]))
+                
+                if pids:
+                    for pid in pids:
+                        # Forzar terminación inmediatamente ya que TERM no funciona bien
+                        subprocess.run(["kill", "-KILL", pid], capture_output=True)
+                    
+                    # Pequeña pausa para asegurar terminación
+                    import time
+                    time.sleep(0.5)
+                    
+                    killed_processes.append(process_name)
+                
+            except Exception as e:
+                print(f"Error matando proceso {process_name}: {e}")
+        
+        return {
+            "status": "success",
+            "message": "Sistema apagado correctamente",
+            "killed_processes": killed_processes
+        }
+    except Exception as e:
+        return {
+            "status": "error", 
+            "message": f"Error apagando sistema: {str(e)}"
+        }
+
+@app.post("/startup")
+def startup_system():
+    """Inicia todos los servicios del sistema Aura"""
+    try:
+        import threading
+        import time
+        
+        # Función para iniciar servicios en background
+        def start_services():
+            time.sleep(1)  # Pequeña pausa antes de iniciar
+            
+            try:
+                # Iniciar WebSocket server usando el Python del entorno virtual
+                venv_python = os.path.join(os.path.dirname(os.path.abspath(__file__)), "venv", "bin", "python")
+                subprocess.Popen(
+                    [venv_python, "websocket_server_simple.py"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    cwd=os.path.dirname(os.path.abspath(__file__))
+                )
+                
+                # Pequeña pausa entre servicios
+                time.sleep(2)
+                
+            except Exception as e:
+                print(f"Error iniciando servicios: {e}")
+        
+        # Iniciar servicios en thread separado
+        thread = threading.Thread(target=start_services)
+        thread.daemon = True
+        thread.start()
+        
+        return {
+            "status": "success",
+            "message": "Iniciando servicios del sistema...",
+            "services": ["websocket_server_simple.py"]
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error iniciando sistema: {str(e)}"
+        }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000) 
