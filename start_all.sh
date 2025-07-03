@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 
-# Iniciar backend si no está corriendo
+# Iniciar backend stats API si no está corriendo
 if ! pgrep -f "system_stats_api.py" > /dev/null; then
   echo "Iniciando backend system_stats_api.py en puerto 8000..."
-  nohup python system_stats_api.py > backend.log 2>&1 &
+  nohup python system_stats_api.py > backend_stats.log 2>&1 &
 else
-  echo "Backend ya está corriendo."
+  echo "Backend stats API ya está corriendo."
+fi
+
+# Iniciar servidor WebSocket si no está corriendo
+if ! pgrep -f "websocket_server_simple.py" > /dev/null; then
+  echo "Iniciando servidor WebSocket en puerto 8765..."
+  nohup python websocket_server_simple.py > websocket.log 2>&1 &
+else
+  echo "Servidor WebSocket ya está corriendo."
 fi
 
 # Iniciar frontend si no está corriendo

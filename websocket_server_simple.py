@@ -63,13 +63,21 @@ class IntegratedAuraWebSocketHandler:
             logger.error(f"❌ Error inicializando voz: {e}")
             return False
     
-    async def initialize_aura_client(self):
+    async def initialize_aura_client(self, model_type="gemini", model_name="gemini-2.0-flash-exp"):
         """Inicializa el cliente Aura de forma asíncrona"""
-        if self.aura_initialized:
+        # Si ya está inicializado con el mismo modelo, no hacer nada
+        if (self.aura_initialized and 
+            hasattr(self, 'current_model_type') and hasattr(self, 'current_model_name') and
+            self.current_model_type == model_type and self.current_model_name == model_name):
             return True
+        
+        # Si ya estaba inicializado, cerrarlo primero
+        if self.aura_initialized:
+            self.aura_initialized = False
+            self.aura_client = None
             
         try:
-            logger.info("Inicializando cliente Aura...")
+            logger.info(f"Inicializando cliente Aura con {model_type}: {model_name}...")
             from client import AuraClient
             
             # Configuración de MCP
@@ -91,8 +99,8 @@ class IntegratedAuraWebSocketHandler:
             
             def create_client():
                 return AuraClient(
-                    model_type="gemini",
-                    model_name="gemini-2.0-flash-exp",
+                    model_type=model_type,
+                    model_name=model_name,
                     enable_voice=True
                 )
             
@@ -104,8 +112,11 @@ class IntegratedAuraWebSocketHandler:
             if not success:
                 logger.warning("⚠️ No se pudo configurar MCP, continuando sin herramientas adicionales")
             
+            # Guardar configuración actual
+            self.current_model_type = model_type
+            self.current_model_name = model_name
             self.aura_initialized = True
-            logger.info("✅ Cliente Aura inicializado correctamente")
+            logger.info(f"✅ Cliente Aura inicializado correctamente con {model_type}: {model_name}")
             return True
             
         except Exception as e:
@@ -171,7 +182,9 @@ class IntegratedAuraWebSocketHandler:
         elif msg_type == "init_voice":
             await self.init_voice_on_demand(websocket)
         elif msg_type == "init_aura":
-            await self.init_aura_on_demand(websocket)
+            model_type = data.get("model_type", "gemini")
+            model_name = data.get("model_name", "gemini-2.0-flash-exp")
+            await self.init_aura_on_demand(websocket, model_type, model_name)
         elif msg_type == "process_text":
             text = data.get("text", "")
             await self.process_with_aura(websocket, text)
@@ -209,24 +222,24 @@ class IntegratedAuraWebSocketHandler:
                 "message": "No se pudo inicializar el sistema de voz"
             }))
     
-    async def init_aura_on_demand(self, websocket):
+    async def init_aura_on_demand(self, websocket, model_type="gemini", model_name="gemini-2.0-flash-exp"):
         """Inicializa el cliente Aura bajo demanda"""
         await websocket.send(json.dumps({
             "type": "status",
-            "message": "Inicializando cliente Aura..."
+            "message": f"Inicializando cliente Aura con {model_type}: {model_name}..."
         }))
         
-        success = await self.initialize_aura_client()
+        success = await self.initialize_aura_client(model_type, model_name)
         
         if success:
             await websocket.send(json.dumps({
                 "type": "aura_ready",
-                "message": "Cliente Aura listo para procesar texto"
+                "message": f"Cliente Aura listo con {model_type}: {model_name}"
             }))
         else:
             await websocket.send(json.dumps({
                 "type": "error",
-                "message": "No se pudo inicializar el cliente Aura"
+                "message": f"No se pudo inicializar el cliente Aura con {model_type}: {model_name}"
             }))
     
     async def process_with_aura(self, websocket, text):
