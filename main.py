@@ -7,6 +7,9 @@ Soporta Google Gemini y Ollama con herramientas MCP
 import os
 import asyncio
 import warnings
+import subprocess
+import threading
+import time
 from client import AuraClient
 from engine.voice.hear import initialize_recognizer, listen_for_command
 
@@ -18,6 +21,8 @@ class AuraAssistant:
         """Inicializa el asistente Aura"""
         self.client = None
         self.voice_recognizer = None
+        self.websocket_process = None
+        self.frontend_process = None
         
     def setup_model(self):
         """Configura el modelo LLM a usar"""
@@ -93,6 +98,10 @@ class AuraAssistant:
                         self.voice_recognizer = initialize_recognizer()
                         if self.voice_recognizer:
                             print("✅ Reconocimiento de voz activado")
+                            
+                            # Lanzar servidor WebSocket y frontend
+                            self.launch_voice_interface()
+                            
                             return True
                         else:
                             print("⚠️  No se pudo inicializar el reconocimiento de voz")
@@ -220,6 +229,59 @@ class AuraAssistant:
             }
         }
     
+    def launch_voice_interface(self):
+        """Lanza el servidor WebSocket y la interfaz web"""
+        print("\n🚀 Iniciando interfaz de voz...")
+        
+        try:
+            # 1. Iniciar servidor WebSocket
+            print("📡 Iniciando servidor WebSocket...")
+            self.websocket_process = subprocess.Popen(
+                ["python", "websocket_server.py"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            
+            # Esperar un poco para que el servidor inicie
+            time.sleep(2)
+            
+            # 2. Iniciar frontend
+            print("🌐 Iniciando interfaz web...")
+            self.frontend_process = subprocess.Popen(
+                ["npm", "run", "dev"],
+                cwd="stellar-voice-display",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            
+            # Esperar un poco más
+            time.sleep(3)
+            
+            print("✅ Interfaz de voz iniciada")
+            print("🌐 Abre tu navegador en: http://localhost:8081")
+            print("📡 WebSocket escuchando en: ws://localhost:8765")
+            print("-" * 50)
+            
+        except Exception as e:
+            print(f"❌ Error iniciando interfaz de voz: {e}")
+            self.cleanup_processes()
+    
+    def cleanup_processes(self):
+        """Limpia los procesos iniciados"""
+        if self.websocket_process:
+            try:
+                self.websocket_process.terminate()
+                self.websocket_process = None
+            except:
+                pass
+                
+        if self.frontend_process:
+            try:
+                self.frontend_process.terminate()
+                self.frontend_process = None
+            except:
+                pass
+
     async def run_interactive_mode(self):
         """Ejecuta el modo interactivo"""
         print("\n🗣️  Modo Interactivo Activado")
@@ -228,6 +290,12 @@ class AuraAssistant:
         print("  • 'salir' o 'exit' - Terminar")
         print("  • 'escuchar' - Entrada por voz (si está disponible)")
         print("  • 'limpiar' - Limpiar historial")
+        
+        # Si la interfaz de voz está activa, mostrar información adicional
+        if self.websocket_process:
+            print("\n💡 Tip: También puedes usar la interfaz web para control por voz")
+            print("🌐 http://localhost:8081")
+        
         print("-" * 50)
         
         while True:
@@ -307,6 +375,9 @@ class AuraAssistant:
         except Exception as e:
             print(f"❌ Error crítico: {e}")
             return 1
+        finally:
+            # Limpiar procesos al salir
+            self.cleanup_processes()
         
         return 0
 
