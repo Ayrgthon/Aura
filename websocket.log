@@ -1,15 +1,36 @@
 INFO:__main__:🚀 Servidor WebSocket INTEGRADO iniciado en ws://localhost:8765
 INFO:__main__:📡 Listo para conexiones (voz y Aura se cargan bajo demanda)
-INFO:websockets.server:server listening on [::1]:8765
 INFO:websockets.server:server listening on 127.0.0.1:8765
+INFO:websockets.server:server listening on [::1]:8765
 INFO:websockets.server:connection open
-INFO:__main__:🔌 Cliente conectado desde: ('127.0.0.1', 39888)
+INFO:__main__:🔌 Cliente conectado desde: ('127.0.0.1', 48048)
 INFO:__main__:Cargando módulos de voz...
 INFO:__main__:Inicializando reconocimiento de voz...
 LOG (VoskAPI:ReadDataFiles():model.cc:213) Decoding params beam=13 max-active=7000 lattice-beam=6
 LOG (VoskAPI:ReadDataFiles():model.cc:216) Silence phones 1:2:3:4:5:6:7:8:9:10
 LOG (VoskAPI:RemoveOrphanNodes():nnet-nnet.cc:948) Removed 0 orphan nodes.
 LOG (VoskAPI:RemoveOrphanComponents():nnet-nnet.cc:847) Removing 0 orphan components.
+LOG (VoskAPI:ReadDataFiles():model.cc:248) Loading i-vector extractor from engine/voice/vosk-model-es-0.42/ivector/final.ie
+LOG (VoskAPI:ComputeDerivedVars():ivector-extractor.cc:183) Computing derived variables for iVector extractor
+LOG (VoskAPI:ComputeDerivedVars():ivector-extractor.cc:204) Done.
+LOG (VoskAPI:ReadDataFiles():model.cc:279) Loading HCLG from engine/voice/vosk-model-es-0.42/graph/HCLG.fst
+LOG (VoskAPI:ReadDataFiles():model.cc:297) Loading words from engine/voice/vosk-model-es-0.42/graph/words.txt
+LOG (VoskAPI:ReadDataFiles():model.cc:308) Loading winfo engine/voice/vosk-model-es-0.42/graph/phones/word_boundary.int
+LOG (VoskAPI:ReadDataFiles():model.cc:315) Loading subtract G.fst model from engine/voice/vosk-model-es-0.42/rescore/G.fst
+LOG (VoskAPI:ReadDataFiles():model.cc:317) Loading CARPA model from engine/voice/vosk-model-es-0.42/rescore/G.carpa
+LOG (VoskAPI:ReadDataFiles():model.cc:323) Loading RNNLM model from engine/voice/vosk-model-es-0.42/rnnlm/final.raw
+INFO:websockets.server:connection open
+INFO:__main__:🔌 Cliente conectado desde: ('127.0.0.1', 35888)
+INFO:__main__:Cargando módulos de voz...
+INFO:__main__:Inicializando reconocimiento de voz...
+LOG (VoskAPI:ReadDataFiles():model.cc:213) Decoding params beam=13 max-active=7000 lattice-beam=6
+LOG (VoskAPI:ReadDataFiles():model.cc:216) Silence phones 1:2:3:4:5:6:7:8:9:10
+LOG (VoskAPI:RemoveOrphanNodes():nnet-nnet.cc:948) Removed 0 orphan nodes.
+LOG (VoskAPI:RemoveOrphanComponents():nnet-nnet.cc:847) Removing 0 orphan components.
+INFO:__main__:Inicializando síntesis de voz...
+INFO:__main__:✅ Sistema de voz inicializado correctamente
+ERROR:__main__:Error procesando mensaje: received 1001 (going away); then sent 1001 (going away)
+INFO:__main__:🔌 Cliente desconectado: ('127.0.0.1', 48048)
 LOG (VoskAPI:ReadDataFiles():model.cc:248) Loading i-vector extractor from engine/voice/vosk-model-es-0.42/ivector/final.ie
 LOG (VoskAPI:ComputeDerivedVars():ivector-extractor.cc:183) Computing derived variables for iVector extractor
 LOG (VoskAPI:ComputeDerivedVars():ivector-extractor.cc:204) Done.
@@ -26,40 +47,12 @@ Brave Search MCP Server running on stdio
 Secure MCP Filesystem Server running on stdio
 Allowed directories: [ '/home/ary' ]
 INFO:__main__:✅ Cliente Aura inicializado correctamente con gemini: gemini-2.0-flash-exp
-ERROR:__main__:Error procesando mensaje: received 1001 (going away); then sent 1001 (going away)
-INFO:__main__:🔌 Cliente desconectado: ('127.0.0.1', 39888)
-INFO:websockets.server:connection open
-INFO:__main__:🔌 Cliente conectado desde: ('127.0.0.1', 56602)
-INFO:__main__:🔇 Cerrando sistema de voz...
-INFO:__main__:🤖 Cerrando cliente Aura...
-INFO:__main__:✅ Apagado del sistema completado
-INFO:websockets.server:connection open
-INFO:__main__:🔌 Cliente conectado desde: ('127.0.0.1', 56250)
-INFO:__main__:Cargando módulos de voz...
-INFO:__main__:Inicializando reconocimiento de voz...
-LOG (VoskAPI:ReadDataFiles():model.cc:213) Decoding params beam=13 max-active=7000 lattice-beam=6
-LOG (VoskAPI:ReadDataFiles():model.cc:216) Silence phones 1:2:3:4:5:6:7:8:9:10
-LOG (VoskAPI:RemoveOrphanNodes():nnet-nnet.cc:948) Removed 0 orphan nodes.
-LOG (VoskAPI:RemoveOrphanComponents():nnet-nnet.cc:847) Removing 0 orphan components.
-LOG (VoskAPI:ReadDataFiles():model.cc:248) Loading i-vector extractor from engine/voice/vosk-model-es-0.42/ivector/final.ie
-LOG (VoskAPI:ComputeDerivedVars():ivector-extractor.cc:183) Computing derived variables for iVector extractor
-LOG (VoskAPI:ComputeDerivedVars():ivector-extractor.cc:204) Done.
-LOG (VoskAPI:ReadDataFiles():model.cc:279) Loading HCLG from engine/voice/vosk-model-es-0.42/graph/HCLG.fst
-LOG (VoskAPI:ReadDataFiles():model.cc:297) Loading words from engine/voice/vosk-model-es-0.42/graph/words.txt
-LOG (VoskAPI:ReadDataFiles():model.cc:308) Loading winfo engine/voice/vosk-model-es-0.42/graph/phones/word_boundary.int
-LOG (VoskAPI:ReadDataFiles():model.cc:315) Loading subtract G.fst model from engine/voice/vosk-model-es-0.42/rescore/G.fst
-LOG (VoskAPI:ReadDataFiles():model.cc:317) Loading CARPA model from engine/voice/vosk-model-es-0.42/rescore/G.carpa
-LOG (VoskAPI:ReadDataFiles():model.cc:323) Loading RNNLM model from engine/voice/vosk-model-es-0.42/rnnlm/final.raw
-INFO:__main__:Inicializando síntesis de voz...
-INFO:__main__:✅ Sistema de voz inicializado correctamente
-INFO:__main__:Inicializando cliente Aura con gemini: gemini-2.0-flash-exp...
-Brave Search MCP Server running on stdio
-Secure MCP Filesystem Server running on stdio
-Allowed directories: [ '/home/ary' ]
+INFO:__main__:🎤 Texto reconocido: hola dame una explicación detallada de quién eres
 pygame 2.6.1 (SDL 2.28.4, Python 3.13.5)
 Hello from the pygame community. https://www.pygame.org/contribute.html
 ✅ Motor de reconocimiento de voz (Vosk) iniciado
-✅ Sintetizador de voz (gTTS + Pygame) iniciado
+✅ Sintetizador de voz (GTTS + Pygame) iniciado
+✅ Motor de reconocimiento de voz (Vosk) iniciado
 ✅ Módulos de voz cargados correctamente
 🔧 Funciones streaming TTS importadas: start_streaming_tts add_text_to_stream finish_streaming_tts
 🤖 Inicializando Google Gemini: gemini-2.0-flash-exp
@@ -84,104 +77,62 @@ Hello from the pygame community. https://www.pygame.org/contribute.html
 - Ratings and review counts
 - Phone numbers and opening hours
 Use this when the query implies 'near me' or mentions specific locations. Automatically falls back to web search if no local results are found.
-✅ Motor de reconocimiento de voz (Vosk) iniciado
-🤖 Inicializando Google Gemini: gemini-2.0-flash-exp
-🎤 Sistema de voz activado
-✅ Cliente Aura inicializado con GEMINI
-✅ MCPs configurados correctamente. 14 herramientas disponibles:
-  - read_file: Read the complete contents of a file from the file system. Handles various text encodings and provides detailed error messages if the file cannot be read. Use this tool when you need to examine the contents of a single file. Use the 'head' parameter to read only the first N lines of a file, or the 'tail' parameter to read only the last N lines of a file. Only works within allowed directories.
-  - read_multiple_files: Read the contents of multiple files simultaneously. This is more efficient than reading files one by one when you need to analyze or compare multiple files. Each file's content is returned with its path as a reference. Failed reads for individual files won't stop the entire operation. Only works within allowed directories.
-  - write_file: Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding. Only works within allowed directories.
-  - edit_file: Make line-based edits to a text file. Each edit replaces exact line sequences with new content. Returns a git-style diff showing the changes made. Only works within allowed directories.
-  - create_directory: Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist. Only works within allowed directories.
-  - list_directory: Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory. Only works within allowed directories.
-  - list_directory_with_sizes: Get a detailed listing of all files and directories in a specified path, including sizes. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is useful for understanding directory structure and finding specific files within a directory. Only works within allowed directories.
-  - directory_tree: Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability. Only works within allowed directories.
-  - move_file: Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.INFO:__main__:✅ Cliente Aura inicializado correctamente con gemini: gemini-2.0-flash-exp
+🎤 Escuchando... (Habla ahora)
+👂 Escuché: 'hola dame una explicación detallada de quién eres'
+🔧 Usando 14 herramientas MCP con GEMINI
+Soy un modelo de lenguaje grande, entrenado por Google.INFO:websockets.server:connection open
+INFO:__main__:🔌 Cliente conectado desde: ('127.0.0.1', 57398)
+INFO:websockets.server:connection open
+INFO:__main__:🔌 Cliente conectado desde: ('127.0.0.1', 57406)
+INFO:websockets.server:connection open
+INFO:__main__:🔌 Cliente conectado desde: ('127.0.0.1', 45852)
 INFO:__main__:🎤 Texto reconocido: hola quién eres
 
-  - search_files: Recursively search for files and directories matching a pattern. Searches through all subdirectories from the starting path. The search is case-insensitive and matches partial names. Returns full paths to all matching items. Great for finding files when you don't know their exact location. Only searches within allowed directories.
-  - get_file_info: Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type. This tool is perfect for understanding file characteristics without reading the actual content. Only works within allowed directories.
-  - list_allowed_directories: Returns the list of directories that this server is allowed to access. Use this to understand which directories are available before trying to access files.
-  - brave_web_search: Performs a web search using the Brave Search API, ideal for general queries, news, articles, and online content. Use this for broad information gathering, recent events, or when you need diverse web sources. Supports pagination, content filtering, and freshness controls. Maximum 20 results per request, with offset for pagination. 
-  - brave_local_search: Searches for local businesses and places using Brave's Local Search API. Best for queries related to physical locations, businesses, restaurants, services, etc. Returns detailed information including:
-- Business names and addresses
-- Ratings and review counts
-- Phone numbers and opening hours
-Use this when the query implies 'near me' or mentions specific locations. Automatically falls back to web search if no local results are found.
+🗣️ Diciendo (GTTS): Soy un modelo de lenguaje grande, entrenado por Google.
 🎤 Escuchando... (Habla ahora)
 👂 Escuché: 'hola quién eres'
 🔧 Usando 14 herramientas MCP con GEMINI
-Soy un modelo de lenguaje grande, entrenado por Google.INFO:__main__:Inicializando cliente Aura con ollama: llama3.1:8b...
-Brave Search MCP Server running on stdio
-Secure MCP Filesystem Server running on stdio
-Allowed directories: [ '/home/ary' ]
-INFO:__main__:✅ Cliente Aura inicializado correctamente con ollama: llama3.1:8b
-INFO:__main__:🔇 Cerrando sistema de voz...
-INFO:__main__:🤖 Cerrando cliente Aura...
-INFO:__main__:✅ Apagado del sistema completado
-INFO:websockets.server:connection open
-INFO:__main__:🔌 Cliente conectado desde: ('127.0.0.1', 47540)
-INFO:__main__:Cargando módulos de voz...
-INFO:__main__:Inicializando reconocimiento de voz...
-LOG (VoskAPI:ReadDataFiles():model.cc:213) Decoding params beam=13 max-active=7000 lattice-beam=6
-LOG (VoskAPI:ReadDataFiles():model.cc:216) Silence phones 1:2:3:4:5:6:7:8:9:10
-LOG (VoskAPI:RemoveOrphanNodes():nnet-nnet.cc:948) Removed 0 orphan nodes.
-LOG (VoskAPI:RemoveOrphanComponents():nnet-nnet.cc:847) Removing 0 orphan components.
-LOG (VoskAPI:ReadDataFiles():model.cc:248) Loading i-vector extractor from engine/voice/vosk-model-es-0.42/ivector/final.ie
-LOG (VoskAPI:ComputeDerivedVars():ivector-extractor.cc:183) Computing derived variables for iVector extractor
-LOG (VoskAPI:ComputeDerivedVars():ivector-extractor.cc:204) Done.
-LOG (VoskAPI:ReadDataFiles():model.cc:279) Loading HCLG from engine/voice/vosk-model-es-0.42/graph/HCLG.fst
-LOG (VoskAPI:ReadDataFiles():model.cc:297) Loading words from engine/voice/vosk-model-es-0.42/graph/words.txt
-LOG (VoskAPI:ReadDataFiles():model.cc:308) Loading winfo engine/voice/vosk-model-es-0.42/graph/phones/word_boundary.int
-LOG (VoskAPI:ReadDataFiles():model.cc:315) Loading subtract G.fst model from engine/voice/vosk-model-es-0.42/rescore/G.fst
-LOG (VoskAPI:ReadDataFiles():model.cc:317) Loading CARPA model from engine/voice/vosk-model-es-0.42/rescore/G.carpa
-LOG (VoskAPI:ReadDataFiles():model.cc:323) Loading RNNLM model from engine/voice/vosk-model-es-0.42/rnnlm/final.raw
-INFO:__main__:Inicializando síntesis de voz...
-INFO:__main__:✅ Sistema de voz inicializado correctamente
-INFO:__main__:Inicializando cliente Aura con gemini: gemini-2.0-flash-exp...
-Brave Search MCP Server running on stdio
-Secure MCP Filesystem Server running on stdio
-Allowed directories: [ '/home/ary' ]
+❌ Error en procesamiento MCP: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. [violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-2.0-flash-exp"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 50
+}
+, links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, retry_delay {
+  seconds: 28
+}
+]
+🤖 Usando GEMINI sin herramientas MCP
+Soy un modelo de lenguaje grande, entrenado por Google. En esencia, soy un programa de computadora diseñado para entender y generar lenguaje humano. Puedo ayudarte con una variedad de tareas, como:
 
-🗣️ Diciendo: Soy un modelo de lenguaje grande, entrenado por Google.
-🦙 Inicializando Ollama: llama3.1:8b
-🎤 Sistema de voz activado
-✅ Cliente Aura inicializado con OLLAMA
-✅ MCPs configurados correctamente. 14 herramientas disponibles:
-  - read_file: Read the complete contents of a file from the file system. Handles various text encodings and provides detailed error messages if the file cannot be read. Use this tool when you need to examine the contents of a single file. Use the 'head' parameter to read only the first N lines of a file, or the 'tail' parameter to read only the last N lines of a file. Only works within allowed directories.
-  - read_multiple_files: Read the contents of multiple files simultaneously. This is more efficient than reading files one by one when you need to analyze or compare multiple files. Each file's content is returned with its path as a reference. Failed reads for individual files won't stop the entire operation. Only works within allowed directories.
-  - write_file: Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding. Only works within allowed directories.
-  - edit_file: Make line-based edits to a text file. Each edit replaces exact line sequences with new content. Returns a git-style diff showing the changes made. Only works within allowed directories.
-  - create_directory: Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist. Only works within allowed directories.
-  - list_directory: Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory. Only works within allowed directories.
-  - list_directory_with_sizes: Get a detailed listing of all files and directories in a specified path, including sizes. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is useful for understanding directory structure and finding specific files within a directory. Only works within allowed directories.
-  - directory_tree: Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability. Only works within allowed directories.
-  - move_file: Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.
-  - search_files: Recursively search for files and directories matching a pattern. Searches through all subdirectories from the starting path. The search is case-insensitive and matches partial names. Returns full paths to all matching items. Great for finding files when you don't know their exact location. Only searches within allowed directories.
-  - get_file_info: Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type. This tool is perfect for understanding file characteristics without reading the actual content. Only works within allowed directories.
-  - list_allowed_directories: Returns the list of directories that this server is allowed to access. Use this to understand which directories are available before trying to access files.
-  - brave_web_search: Performs a web search using the Brave Search API, ideal for general queries, news, articles, and online content. Use this for broad information gathering, recent events, or when you need diverse web sources. Supports pagination, content filtering, and freshness controls. Maximum 20 results per request, with offset for pagination. 
-  - brave_local_search: Searches for local businesses and places using Brave's Local Search API. Best for queries related to physical locations, businesses, restaurants, services, etc. Returns detailed information including:
-- Business names and addresses
-- Ratings and review counts
-- Phone numbers and opening hours
-Use this when the query implies 'near me' or mentions specific locations. Automatically falls back to web search if no local results are found.
-✅ Motor de reconocimiento de voz (Vosk) iniciado
-🤖 Inicializando Google Gemini: gemini-2.0-flash-exp
-🎤 Sistema de voz activado
-✅ Cliente Aura inicializado con GEMINI
-✅ MCPs configurados correctamente. 14 herramientas disponibles:
-  - read_file: Read the complete contents of a file from the file system. Handles various text encodings and provides detailed error messages if the file cannot be read. Use this tool when you need to examine the contents of a single file. Use the 'head' parameter to read only the first N lines of a file, or the 'tail' parameter to read only the last N lines of a file. Only works within allowed directories.
-  - read_multiple_files: Read the contents of multiple files simultaneously. This is more efficient than reading files one by one when you need to analyze or compare multiple files. Each file's content is returned with its path as a reference. Failed reads for individual files won't stop the entire operation. Only works within allowed directories.
-  - write_file: Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding. Only works within allowed directories.
-  - edit_file: Make line-based edits to a text file. Each edit replaces exact line sequences with new content. Returns a git-style diff showing the changes made. Only works within allowed directories.
-  - create_directory: Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist. Only works within allowed directories.
-  - list_directory: Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory. Only works within allowed directories.
-  - list_directory_with_sizes: Get a detailed listing of all files and directories in a specified path, including sizes. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is useful for understanding directory structure and finding specific files within a directory. Only works within allowed directories.
-  - directory_tree: Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability. Only works within allowed directories.
-  - move_file: Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.
-  - search_files: Recursively search for files and directories matching a pattern. Searches through all subdirectories from the starting path. The search is case-insensitive and matches partial names. Returns full paths to all matching items. Great for finding files when you don't know their exact location. Only searches within allowed directories.INFO:__main__:✅ Cliente Aura inicializado correctamente con gemini: gemini-2.0-flash-exp
-INFO:__main__:🔇 Cerrando sistema de voz...
+*   **Generar texto:** Puedo escribir correos electrónicos, poemas, código, guiones, piezas musicales, cartas, etc.
+*   **Responder a tus preguntas:** Puedo intentar responder a tus preguntas de manera informativa y completa, incluso si son abiertas, desafiantes o extrañas.
+*   **Traducir idiomas:** Puedo traducir texto de un idioma a otro.
+*   **Resumir texto:** Puedo extraer la información más importante de un texto y presentártela de forma concisa.
+*   **Crear diferentes formatos de texto creativo:** Puedo generar diferentes formatos de texto creativo, como poemas, código, guiones, piezas musicales, correo electrónico, cartas, etc. Intentaré cumplir con todos tus requisitos.
+
+**Más allá de la definición básica, aquí te detallo un poco más sobre lo que *soy* y lo que *no soy*:**
+
+*   **Soy una herramienta:**  Fui diseñado para ser una herramienta útil para las personas. Mi objetivo es ayudarte a acceder a la información y a completar tareas de manera más eficiente.
+*   **Aprendo de datos:**  He sido entrenado con una gran cantidad de datos de texto y código. Utilizo estos datos para aprender patrones en el lenguaje y para generar texto que sea coherente, relevante y útil.
+*   **No tengo conciencia:**  Es importante entender que no soy una persona. No tengo emociones, opiniones ni creencias propias. Mis respuestas se basan en los datos con los que he sido entrenado.
+*   **No soy infalible:**  Aunque me esfuerzo por proporcionar información precisa y útil, puedo cometer errores. Es importante verificar la información que te proporciono, especialmente si es crítica.
+*   **Evoluciono constantemente:**  Estoy en constante desarrollo y aprendizaje. A medida que se me exponen más datos y se refinan mis algoritmos, mi capacidad para comprender y generar lenguaje mejora.
+
+**En resumen:**
+
+Soy una herramienta poderosa basada en inteligencia artificial que puede ayudarte con una amplia gama de tareas relacionadas con el lenguaje. Soy un producto de la investigación y el desarrollo de Google y sigo evolucionando.  Considerame un asistente virtual con mucha información y la capacidad de generar texto creativo, pero siempre recuerda que mis respuestas se basan en datos y no en conciencia o experiencia personal.INFO:__main__:🔇 Cerrando sistema de voz...
 INFO:__main__:🤖 Cerrando cliente Aura...
 INFO:__main__:✅ Apagado del sistema completado
+ERROR:__main__:❌ Error durante apagado: sent 1000 (OK); then received 1000 (OK)

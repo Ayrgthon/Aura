@@ -435,8 +435,7 @@ class AuraClient:
             fallback_response = f"Según la información encontrada: {tool_results[0]['result'][:500]}..."
             print(fallback_response)
             
-            if self.voice_enabled:
-                self.speak_text(fallback_response)
+            # TTS post-output eliminado para evitar duplicación de audio
             
             self.conversation_history.append(AIMessage(content=fallback_response))
             return fallback_response
@@ -475,8 +474,7 @@ class AuraClient:
                 streaming_tts.finish()
         else:
             print(content)
-            if self.voice_enabled:
-                self.speak_text(content)
+            # TTS post-output eliminado para evitar duplicación de audio
         
         print()  # Nueva línea
         self.conversation_history.append(AIMessage(content=content))

@@ -11,7 +11,9 @@ sounddevice>=0.4.6
 vosk>=0.3.45
 
 # Dependencias para síntesis de voz (TTS)
-gtts>=2.3.0
+gtts
+elevenlabs
+requests>=2.3.0
 pygame>=2.1.0
 
 # Utilidades adicionales

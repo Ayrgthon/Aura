@@ -124,7 +124,7 @@ def get_gpu_usage():
                     if "gpu" in p.lower() and i + 1 < len(parts):
                         val = parts[i+1].replace('%','').replace(',','.')
                         try:
-                            return float(val)
+                        return float(val)
                         except:
                             continue
     except Exception:
@@ -147,10 +147,10 @@ def get_gpu_usage():
             # Si Ollama está corriendo, simular un uso básico
             # Esto es un fallback, idealmente los métodos anteriores deberían funcionar
             return 15.0  # Valor conservador cuando Ollama está activo
-    except Exception:
+        except Exception:
         pass
     
-    return None
+            return None
 
 @app.get("/system-stats")
 def system_stats():
@@ -274,7 +274,7 @@ def startup_system():
         return {
             "status": "error",
             "message": f"Error iniciando sistema: {str(e)}"
-        }
+    }
 
 if __name__ == "__main__":
     import uvicorn

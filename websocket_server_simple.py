@@ -190,6 +190,9 @@ class IntegratedAuraWebSocketHandler:
             await self.process_with_aura(websocket, text)
         elif msg_type == "shutdown_system":
             await self.handle_system_shutdown(websocket)
+        elif msg_type == "change_tts_engine":
+            engine = data.get("engine", "gtts")
+            await self.handle_tts_engine_change(websocket, engine)
         else:
             await websocket.send(json.dumps({
                 "type": "error",
@@ -329,6 +332,36 @@ class IntegratedAuraWebSocketHandler:
                 }))
             except:
                 pass
+    
+    async def handle_tts_engine_change(self, websocket, engine):
+        """Maneja el cambio de motor TTS"""
+        try:
+            # Importar la función para cambiar el motor TTS
+            from engine.voice.speak import set_tts_engine, get_current_tts_engine
+            
+            success = set_tts_engine(engine)
+            
+            if success:
+                current_engine = get_current_tts_engine()
+                await websocket.send(json.dumps({
+                    "type": "tts_engine_changed",
+                    "engine": current_engine,
+                    "message": f"Motor TTS cambiado a {current_engine.upper()}"
+                }))
+                logger.info(f"✅ Motor TTS cambiado a: {current_engine}")
+            else:
+                await websocket.send(json.dumps({
+                    "type": "error",
+                    "message": f"No se pudo cambiar el motor TTS a {engine}"
+                }))
+                logger.error(f"❌ Error cambiando motor TTS a: {engine}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error manejando cambio de motor TTS: {e}")
+            await websocket.send(json.dumps({
+                "type": "error",
+                "message": f"Error cambiando motor TTS: {str(e)}"
+            }))
     
     async def start_listening(self, websocket):
         """Inicia el reconocimiento de voz"""

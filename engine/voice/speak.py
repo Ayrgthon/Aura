@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Módulo de síntesis de voz (Text to Speech)
-Utiliza gTTS y pygame para convertir texto a voz en español
+Utiliza ElevenLabs y pygame para convertir texto a voz en español
 Versión optimizada para evitar cortes y delays
 """
 
@@ -11,8 +11,231 @@ import threading
 import queue
 import time as time_module
 import atexit
-from gtts import gTTS
+import requests
 from pygame import mixer
+
+# Importar gTTS como fallback
+try:
+    from gtts import gTTS
+    GTTS_AVAILABLE = True
+except ImportError:
+    GTTS_AVAILABLE = False
+    print("⚠️ gTTS no disponible. Solo se usará ElevenLabs.")
+
+# Motor TTS actual (puede ser 'elevenlabs' o 'gtts')
+CURRENT_TTS_ENGINE = 'gtts'  # Por defecto gTTS para ahorrar API
+
+# Configuración ElevenLabs
+ELEVENLABS_API_KEY = "YOUR_ELEVENLABS_API_KEY_HERE"
+ELEVENLABS_URL = "https://api.elevenlabs.io/v1/text-to-speech/"
+
+# Voces populares de ElevenLabs en español
+ELEVENLABS_VOICES = {
+    "spanish_male": "pNInz6obpgDQGcFmaJgB",      # Adam (inglés pero funciona bien)
+    "spanish_female": "EXAVITQu4vr4xnSDxMaL",     # Bella (inglés pero suena bien)
+    "multilingual_v1": "pMsXgVXv3BLzUgSXRplE",   # Premade voice multilingue
+    "multilingual_v2": "IKne3meq5aSn9XLyUdCD",   # Premade voice multilingue 
+    "default": "pNInz6obpgDQGcFmaJgB"             # Adam por defecto
+}
+
+# Usar voz por defecto
+DEFAULT_VOICE_ID = ELEVENLABS_VOICES["multilingual_v1"]
+
+def generate_elevenlabs_audio(text, voice_id=None, output_file=None):
+    """
+    Genera audio usando ElevenLabs API
+    
+    Args:
+        text (str): Texto a sintetizar
+        voice_id (str): ID de la voz (opcional)
+        output_file (str): Archivo de salida (opcional)
+    
+    Returns:
+        str: Ruta del archivo de audio generado
+    """
+    if not text or text.isspace():
+        return None
+    
+    if not voice_id:
+        voice_id = DEFAULT_VOICE_ID
+    
+    if not output_file:
+        output_file = os.path.join(tempfile.gettempdir(), f"elevenlabs_{int(time_module.time() * 1000)}.mp3")
+    
+    try:
+        url = f"{ELEVENLABS_URL}{voice_id}"
+        
+        headers = {
+            "Accept": "audio/mpeg",
+            "Content-Type": "application/json",
+            "xi-api-key": ELEVENLABS_API_KEY
+        }
+        
+        data = {
+            "text": text,
+            "model_id": "eleven_multilingual_v2",  # Modelo multilingüe para español
+            "voice_settings": {
+                "stability": 0.7,           # Más estable para evitar artefactos
+                "similarity_boost": 0.9,    # Mayor similitud a la voz original
+                "style": 0.2,               # Algo de expresividad 
+                "use_speaker_boost": True   # Mejora la claridad
+            }
+        }
+        
+        response = requests.post(url, json=data, headers=headers, timeout=30)
+        
+        if response.status_code == 200:
+            with open(output_file, 'wb') as f:
+                f.write(response.content)
+            return output_file
+        else:
+            print(f"❌ Error ElevenLabs API: {response.status_code} - {response.text}")
+            return None
+            
+    except Exception as e:
+        print(f"❌ Error generando audio con ElevenLabs: {e}")
+        return None
+
+def generate_gtts_audio(text, output_file=None, lang='es', slow=False):
+    """
+    Genera audio usando gTTS (Google Text-to-Speech)
+    
+    Args:
+        text (str): Texto a sintetizar
+        output_file (str): Archivo de salida (opcional)
+        lang (str): Idioma
+        slow (bool): Velocidad lenta
+    
+    Returns:
+        str: Ruta del archivo de audio generado
+    """
+    if not GTTS_AVAILABLE:
+        print("❌ gTTS no está disponible")
+        return None
+        
+    if not text or text.isspace():
+        return None
+    
+    if not output_file:
+        output_file = os.path.join(tempfile.gettempdir(), f"gtts_{int(time_module.time() * 1000)}.mp3")
+    
+    try:
+        tts = gTTS(text=text, lang=lang, slow=slow)
+        tts.save(output_file)
+        return output_file
+    except Exception as e:
+        print(f"❌ Error generando audio con gTTS: {e}")
+        return None
+
+def generate_audio_with_current_engine(text, output_file=None, lang='es', slow=False):
+    """
+    Genera audio usando el motor TTS configurado actualmente
+    
+    Args:
+        text (str): Texto a sintetizar
+        output_file (str): Archivo de salida (opcional)
+        lang (str): Idioma
+        slow (bool): Velocidad lenta
+    
+    Returns:
+        str: Ruta del archivo de audio generado
+    """
+    global CURRENT_TTS_ENGINE
+    
+    if CURRENT_TTS_ENGINE == 'elevenlabs':
+        return generate_elevenlabs_audio(text, output_file=output_file)
+    elif CURRENT_TTS_ENGINE == 'gtts':
+        return generate_gtts_audio(text, output_file=output_file, lang=lang, slow=slow)
+    else:
+        print(f"❌ Motor TTS desconocido: {CURRENT_TTS_ENGINE}")
+        return None
+
+def set_tts_engine(engine_name):
+    """
+    Cambia el motor TTS actual
+    
+    Args:
+        engine_name (str): 'elevenlabs' o 'gtts'
+    
+    Returns:
+        bool: True si el cambio fue exitoso
+    """
+    global CURRENT_TTS_ENGINE
+    
+    if engine_name == 'elevenlabs':
+        CURRENT_TTS_ENGINE = 'elevenlabs'
+        print("✅ Motor TTS cambiado a ElevenLabs")
+        return True
+    elif engine_name == 'gtts':
+        if GTTS_AVAILABLE:
+            CURRENT_TTS_ENGINE = 'gtts'
+            print("✅ Motor TTS cambiado a gTTS")
+            return True
+        else:
+            print("❌ gTTS no está disponible")
+            return False
+    else:
+        print(f"❌ Motor TTS no válido: {engine_name}. Usa 'elevenlabs' o 'gtts'")
+        return False
+
+def get_current_tts_engine():
+    """
+    Obtiene el motor TTS actual
+    
+    Returns:
+        str: Motor TTS actual ('elevenlabs' o 'gtts')
+    """
+    return CURRENT_TTS_ENGINE
+
+def get_available_tts_engines():
+    """
+    Obtiene la lista de motores TTS disponibles
+    
+    Returns:
+        list: Lista de motores disponibles
+    """
+    engines = ['elevenlabs']
+    if GTTS_AVAILABLE:
+        engines.append('gtts')
+    return engines
+
+def change_voice(voice_name):
+    """
+    Cambia la voz utilizada por ElevenLabs
+    
+    Args:
+        voice_name (str): Nombre de la voz a usar
+    
+    Returns:
+        bool: True si el cambio fue exitoso
+    """
+    global DEFAULT_VOICE_ID
+    
+    if voice_name in ELEVENLABS_VOICES:
+        DEFAULT_VOICE_ID = ELEVENLABS_VOICES[voice_name]
+        print(f"✅ Voz cambiada a: {voice_name} (ID: {DEFAULT_VOICE_ID})")
+        return True
+    else:
+        print(f"❌ Voz '{voice_name}' no encontrada. Voces disponibles: {list(ELEVENLABS_VOICES.keys())}")
+        return False
+
+def get_available_voices():
+    """
+    Obtiene la lista de voces disponibles
+    
+    Returns:
+        dict: Diccionario con las voces disponibles
+    """
+    return ELEVENLABS_VOICES.copy()
+
+def get_current_voice():
+    """
+    Obtiene la voz actualmente seleccionada
+    
+    Returns:
+        str: ID de la voz actual
+    """
+    return DEFAULT_VOICE_ID
 
 class StreamingTTS:
     def __init__(self):
@@ -57,10 +280,10 @@ class StreamingTTS:
     def _tts_worker(self):
         """
         Worker que procesa la cola de texto y reproduce audio secuencialmente
+        Optimizado para reproducir por oraciones completas (separadas por ".")
         """
         buffer = ""
-        sentence_endings = ['.', '!', '?']  # Solo finales de oración importantes
-        word_count = 0
+        sentence_endings = ['.']  # Solo punto para oraciones completas
         finish_signal_received = False
         last_speech_time = time_module.time()  # Para forzar reproducción por tiempo
         
@@ -73,9 +296,8 @@ class StreamingTTS:
                     break
                 
                 buffer += text_chunk
-                word_count += len(text_chunk.split())
                 
-                # Buscar final de oración para reproducir
+                # Buscar final de oración para reproducir (solo punto)
                 sentence_found = False
                 for ending in sentence_endings:
                     if ending in buffer:
@@ -86,34 +308,15 @@ class StreamingTTS:
                         
                         if sentence.strip():
                             self._speak_chunk_sync(sentence.strip())
-                            word_count = len(buffer.split()) if buffer.strip() else 0
                             sentence_found = True
                             last_speech_time = time_module.time()  # Actualizar tiempo de última reproducción
                         break
                 
-                # Si no hay final de oración pero ya tenemos varias palabras, reproducir
-                if not sentence_found and word_count >= 8:  # Reducido a 8 palabras para procesar más frecuentemente
-                    # Buscar el último espacio para cortar en palabra completa
-                    words = buffer.split()
-                    if len(words) >= 6:
-                        # Tomar las primeras 6 palabras y dejar el resto en buffer
-                        chunk_words = words[:6]
-                        remaining_words = words[6:]
-                        
-                        chunk_text = ' '.join(chunk_words)
-                        buffer = ' '.join(remaining_words)
-                        
-                        if chunk_text.strip():
-                            self._speak_chunk_sync(chunk_text)
-                            word_count = len(remaining_words)
-                            last_speech_time = time_module.time()  # Actualizar tiempo
-                
-                # NUEVO: Forzar reproducción si ha pasado mucho tiempo sin hablar (3 segundos)
+                # Forzar reproducción si ha pasado mucho tiempo sin hablar (4 segundos)
                 current_time = time_module.time()
-                if buffer.strip() and (current_time - last_speech_time) > 3.0:
+                if buffer.strip() and (current_time - last_speech_time) > 4.0:
                     self._speak_chunk_sync(buffer.strip())
                     buffer = ""
-                    word_count = 0
                     last_speech_time = current_time
                 
             except queue.Empty:
@@ -122,10 +325,9 @@ class StreamingTTS:
                     break
                 # También verificar timeout por tiempo cuando no hay nuevos chunks
                 current_time = time_module.time()
-                if buffer.strip() and (current_time - last_speech_time) > 2.0:
+                if buffer.strip() and (current_time - last_speech_time) > 3.0:
                     self._speak_chunk_sync(buffer.strip())
                     buffer = ""
-                    word_count = 0
                     last_speech_time = current_time
                 continue
             except Exception as e:
@@ -170,7 +372,7 @@ class VoiceSynthesizer:
             mixer.pre_init(frequency=22050, size=-16, channels=2, buffer=1024)
             mixer.init()
             self.initialized = True
-            print("✅ Sintetizador de voz (gTTS + Pygame) iniciado")
+            print(f"✅ Sintetizador de voz ({CURRENT_TTS_ENGINE.upper()} + Pygame) iniciado")
             return True
         except Exception as e:
             print(f"❌ Error al inicializar el sintetizador de voz: {e}")
@@ -203,10 +405,13 @@ class VoiceSynthesizer:
             self.audio_counter += 1
             self.temp_files.append(audio_file)
             
-            # Generar audio con gTTS
-            print(f"🗣️ Diciendo: {text_to_speak}")
-            tts = gTTS(text=text_to_speak, lang=lang, slow=slow)
-            tts.save(audio_file)
+            # Generar audio con el motor actual
+            print(f"🗣️ Diciendo ({CURRENT_TTS_ENGINE.upper()}): {text_to_speak}")
+            audio_file = generate_audio_with_current_engine(text_to_speak, output_file=audio_file, lang=lang, slow=slow)
+            
+            if not audio_file or not os.path.exists(audio_file):
+                print(f"❌ No se pudo generar el audio con {CURRENT_TTS_ENGINE.upper()}")
+                return False
             
             # Reproducir audio con pygame
             mixer.music.load(audio_file)
@@ -250,9 +455,12 @@ class VoiceSynthesizer:
             audio_file = os.path.join(self.temp_dir, f"seq_chunk_{self.audio_counter}.mp3")
             self.temp_files.append(audio_file)
             
-            # Generar audio
-            tts = gTTS(text=text_chunk, lang=lang, slow=False)
-            tts.save(audio_file)
+            # Generar audio con el motor actual
+            audio_file = generate_audio_with_current_engine(text_chunk, output_file=audio_file, lang=lang)
+            
+            if not audio_file or not os.path.exists(audio_file):
+                print(f"❌ No se pudo generar chunk de audio con {CURRENT_TTS_ENGINE.upper()}")
+                return False
             
             # Esperar a que termine la reproducción anterior de forma más eficiente
             timeout = 10  # 10 segundos máximo para esperar
@@ -325,10 +533,13 @@ class VoiceSynthesizer:
                 self.audio_counter += 1
                 self.temp_files.append(audio_file)
                 
-                # Generar audio con gTTS
-                print(f"🗣️ Diciendo: {text_to_speak}")
-                tts = gTTS(text=text_to_speak, lang=lang, slow=slow)
-                tts.save(audio_file)
+                # Generar audio con el motor actual
+                print(f"🗣️ Diciendo ({CURRENT_TTS_ENGINE.upper()}): {text_to_speak}")
+                audio_file = generate_audio_with_current_engine(text_to_speak, output_file=audio_file, lang=lang, slow=slow)
+                
+                if not audio_file or not os.path.exists(audio_file):
+                    print(f"❌ No se pudo generar audio asíncrono con {CURRENT_TTS_ENGINE.upper()}")
+                    return
                 
                 # Reproducir audio sin bloquear
                 mixer.music.load(audio_file)
@@ -375,7 +586,7 @@ class VoiceSynthesizer:
         Returns:
             bool: True si la prueba es exitosa
         """
-        test_text = "Hola, soy Aura. El sintetizador de voz está funcionando correctamente."
+        test_text = f"Hola, soy Aura. El sintetizador de voz con {CURRENT_TTS_ENGINE.upper()} está funcionando correctamente."
         return self.speak(test_text)
     
     def cleanup(self):
