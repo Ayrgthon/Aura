@@ -74,7 +74,7 @@ if GEMINI_AVAILABLE:
 
 class StreamingCallbackHandler(BaseCallbackHandler):
     """
-    Callback handler para manejar streaming de respuestas
+    Callback handler para manejar streaming de respuestas con TTS
     """
     def __init__(self, voice_streaming=False, voice_enabled=False):
         super().__init__()
@@ -150,7 +150,7 @@ class AuraClient:
         # Configuraciones
         self.conversation_history: List[BaseMessage] = []
         
-        # Inicializar voz si está habilitado
+        # Reactivar TTS de forma controlada
         self.voice_synthesizer = None
         if self.voice_enabled:
             self._initialize_voice()
@@ -398,7 +398,7 @@ class AuraClient:
         try:
             natural_response = ""
             
-            # Streaming de la respuesta sintetizada
+            # Streaming de la respuesta sintetizada con TTS por oraciones
             if self.voice_enabled and StreamingTTS:
                 streaming_tts = StreamingTTS()
                 if self.voice_synthesizer:
@@ -416,7 +416,7 @@ class AuraClient:
                 if streaming_tts:
                     streaming_tts.finish()
             else:
-                # Solo texto
+                # Solo texto si no hay TTS
                 for chunk in self.model.stream(synthesis_messages):
                     if hasattr(chunk, 'content') and chunk.content:
                         content = chunk.content
@@ -456,7 +456,7 @@ class AuraClient:
     
     async def _stream_response(self, content: str) -> str:
         """
-        Reproduce una respuesta con streaming y TTS
+        Reproduce una respuesta con streaming y TTS por oraciones
         """
         if self.voice_enabled and StreamingTTS:
             streaming_tts = StreamingTTS()
@@ -474,7 +474,6 @@ class AuraClient:
                 streaming_tts.finish()
         else:
             print(content)
-            # TTS post-output eliminado para evitar duplicación de audio
         
         print()  # Nueva línea
         self.conversation_history.append(AIMessage(content=content))

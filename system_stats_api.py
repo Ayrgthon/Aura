@@ -197,7 +197,7 @@ def shutdown_system():
                 
                 # También buscar con ruta completa
                 result = subprocess.run(
-                    ["pgrep", "-f", f"./venv/bin/python {process_name}"], 
+                    ["pgrep", "-f", f"python {process_name}"], 
                     capture_output=True, 
                     text=True
                 )

@@ -101,7 +101,7 @@ class IntegratedAuraWebSocketHandler:
                 return AuraClient(
                     model_type=model_type,
                     model_name=model_name,
-                    enable_voice=True
+                    enable_voice=True  # TTS reactivado
                 )
             
             # Crear cliente en thread separado
@@ -248,7 +248,7 @@ class IntegratedAuraWebSocketHandler:
             }))
     
     async def process_with_aura(self, websocket, text):
-        """Procesa texto usando el cliente Aura"""
+        """Procesa texto usando el cliente Aura con TTS streaming"""
         if not self.aura_initialized or not self.aura_client:
             await websocket.send(json.dumps({
                 "type": "error",
@@ -269,8 +269,8 @@ class IntegratedAuraWebSocketHandler:
                 "message": f"Procesando: '{text}'"
             }))
             
-            # Procesar con Aura
-            response = await self.aura_client.chat_with_voice(text)
+            # Procesar con Aura usando TTS streaming controlado
+            response = await self.chat_with_voice_streaming(websocket, text)
             
             # Asegurar que response es string
             response_str = str(response) if response else "Sin respuesta"
@@ -282,10 +282,6 @@ class IntegratedAuraWebSocketHandler:
                 "response": response_str,
                 "timestamp": datetime.now().isoformat()
             }))
-            
-            # Sintetizar respuesta automáticamente
-            if self.voice_initialized and response_str:
-                await self.speak_text(websocket, response_str)
             
         except Exception as e:
             logger.error(f"Error procesando con Aura: {e}")
@@ -333,6 +329,78 @@ class IntegratedAuraWebSocketHandler:
             except:
                 pass
     
+    async def chat_with_voice_streaming(self, websocket, text):
+        """Procesa texto con Aura y maneja TTS streaming con notificaciones"""
+        try:
+            # Notificar que empezó a hablar
+            await websocket.send(json.dumps({
+                "type": "tts_status",
+                "speaking": True,
+                "message": "Iniciando TTS streaming..."
+            }))
+            
+            # Crear una versión modificada del cliente que notifique al websocket
+            class WebSocketStreamingTTS:
+                def __init__(self, websocket, original_streaming_tts):
+                    self.websocket = websocket
+                    self.original_streaming_tts = original_streaming_tts
+                    self.is_active = False
+                    
+                def start(self, synthesizer):
+                    self.is_active = True
+                    asyncio.create_task(self.websocket.send(json.dumps({
+                        "type": "tts_status",
+                        "speaking": True,
+                        "message": "TTS streaming activo"
+                    })))
+                    return self.original_streaming_tts.start(synthesizer)
+                
+                def add_text(self, text):
+                    return self.original_streaming_tts.add_text(text)
+                
+                def finish(self):
+                    self.is_active = False
+                    asyncio.create_task(self.websocket.send(json.dumps({
+                        "type": "tts_status",
+                        "speaking": False,
+                        "message": "TTS streaming completado"
+                    })))
+                    return self.original_streaming_tts.finish()
+            
+            # Monkey patch temporal para interceptar el streaming TTS
+            from engine.voice.speak import StreamingTTS
+            original_streaming_tts_class = StreamingTTS
+            
+            def patched_streaming_tts():
+                return WebSocketStreamingTTS(websocket, original_streaming_tts_class())
+            
+            # Ejecutar chat con el patch
+            import engine.voice.speak
+            engine.voice.speak.StreamingTTS = patched_streaming_tts
+            
+            try:
+                response = await self.aura_client.chat_with_voice(text)
+                return response
+            finally:
+                # Restaurar clase original
+                engine.voice.speak.StreamingTTS = original_streaming_tts_class
+                
+                # Notificar que terminó
+                await websocket.send(json.dumps({
+                    "type": "tts_status",
+                    "speaking": False,
+                    "message": "TTS completado"
+                }))
+            
+        except Exception as e:
+            logger.error(f"Error en chat_with_voice_streaming: {e}")
+            await websocket.send(json.dumps({
+                "type": "tts_status",
+                "speaking": False,
+                "message": f"Error en TTS: {str(e)}"
+            }))
+            raise
+
     async def handle_tts_engine_change(self, websocket, engine):
         """Maneja el cambio de motor TTS"""
         try:
@@ -454,7 +522,7 @@ class IntegratedAuraWebSocketHandler:
         }))
     
     async def speak_text(self, websocket, text):
-        """Sintetiza y reproduce texto"""
+        """Sintetiza y reproduce texto con notificaciones de estado"""
         if not text:
             return
             
