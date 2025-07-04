@@ -35,7 +35,7 @@ fi
 
 # Iniciar servidor WebSocket en segundo plano
 echo "📡 Iniciando servidor WebSocket..."
-python websocket_server.py &
+python websocket_server_simple.py > websocket.log 2>&1 &
 WEBSOCKET_PID=$!
 
 # Esperar un poco

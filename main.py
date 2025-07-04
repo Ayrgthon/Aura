@@ -130,12 +130,15 @@ class AuraAssistant:
         print("Opciones disponibles:")
         print("1. 📁 Solo Filesystem (operaciones con archivos)")
         print("2. 🔍 Solo Brave Search (búsquedas web)")
-        print("3. 🌐 Filesystem + Brave Search (recomendado)")
-        print("4. ❌ Sin MCP")
+        print("3. 🗃️ Solo Obsidian Memory (memoria centralizada)")
+        print("4. 🌐 Filesystem + Brave Search")
+        print("5. 🧠 Obsidian Memory + Brave Search (recomendado)")
+        print("6. 🔧 Filesystem + Obsidian Memory + Brave Search (completo)")
+        print("7. ❌ Sin MCP")
         
         while True:
             try:
-                choice = input("\nSelecciona configuración MCP (1-4): ").strip()
+                choice = input("\nSelecciona configuración MCP (1-7): ").strip()
                 
                 if choice == "1":
                     # Solo filesystem
@@ -146,17 +149,34 @@ class AuraAssistant:
                     mcp_config = self._get_brave_search_config()
                     break
                 elif choice == "3":
-                    # Ambos
+                    # Solo Obsidian Memory
+                    mcp_config = self._get_obsidian_memory_config()
+                    break
+                elif choice == "4":
+                    # Filesystem + Brave Search
                     filesystem_config = self._get_filesystem_config()
                     brave_config = self._get_brave_search_config()
                     mcp_config = {**filesystem_config, **brave_config}
                     break
-                elif choice == "4":
+                elif choice == "5":
+                    # Obsidian Memory + Brave Search
+                    obsidian_config = self._get_obsidian_memory_config()
+                    brave_config = self._get_brave_search_config()
+                    mcp_config = {**obsidian_config, **brave_config}
+                    break
+                elif choice == "6":
+                    # Todos los MCPs
+                    filesystem_config = self._get_filesystem_config()
+                    brave_config = self._get_brave_search_config()
+                    obsidian_config = self._get_obsidian_memory_config()
+                    mcp_config = {**filesystem_config, **brave_config, **obsidian_config}
+                    break
+                elif choice == "7":
                     # Sin MCP
                     print("✅ Continuando sin MCP")
                     return False
                 else:
-                    print("❌ Opción no válida. Selecciona 1, 2, 3 o 4.")
+                    print("❌ Opción no válida. Selecciona 1, 2, 3, 4, 5, 6 o 7.")
                     continue
                     
             except KeyboardInterrupt:
@@ -189,7 +209,8 @@ class AuraAssistant:
             (f"{home_dir}/Escritorio", "Escritorio"),
             (f"{home_dir}/Descargas", "Descargas"),
             (f"{home_dir}/Downloads", "Downloads"),
-            ("/tmp", "temporal")
+            ("/tmp", "temporal"),
+            ("/home/ary/Documentos/Ary Vault", "Obsidian Vault")
         ]
         
         # Filtrar solo directorios que existen
@@ -229,6 +250,35 @@ class AuraAssistant:
             }
         }
     
+    def _get_obsidian_memory_config(self):
+        """Obtiene la configuración del MCP Obsidian Memory"""
+        print("🗃️ Configurando Obsidian Memory...")
+        
+        # Verificar que el vault existe
+        vault_path = "/home/ary/Documentos/Ary Vault"
+        if not os.path.exists(vault_path):
+            print(f"❌ El vault de Obsidian no existe en: {vault_path}")
+            print("💡 Verifica la ruta del vault en el archivo obsidian_memory_server.js")
+            return {}
+        
+        # Verificar que el servidor MCP existe
+        server_path = "./obsidian_memory_server.js"
+        if not os.path.exists(server_path):
+            print(f"❌ El servidor MCP no existe en: {server_path}")
+            print("💡 Asegúrate de que el archivo obsidian_memory_server.js está en el directorio actual")
+            return {}
+        
+        print(f"✅ Vault detectado: {vault_path}")
+        print(f"✅ Servidor MCP disponible: {server_path}")
+        
+        return {
+            "obsidian-memory": {
+                "command": "node",
+                "args": [server_path],
+                "transport": "stdio"
+            }
+        }
+    
     def launch_voice_interface(self):
         """Lanza el servidor WebSocket y la interfaz web"""
         print("\n🚀 Iniciando interfaz de voz...")
@@ -237,7 +287,7 @@ class AuraAssistant:
             # 1. Iniciar servidor WebSocket
             print("📡 Iniciando servidor WebSocket...")
             self.websocket_process = subprocess.Popen(
-                ["python", "websocket_server.py"],
+                ["python", "websocket_server_simple.py"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
@@ -258,7 +308,7 @@ class AuraAssistant:
             time.sleep(3)
             
             print("✅ Interfaz de voz iniciada")
-            print("🌐 Abre tu navegador en: http://localhost:8081")
+            print("🌐 Abre tu navegador en: http://localhost:5173")
             print("📡 WebSocket escuchando en: ws://localhost:8765")
             print("-" * 50)
             

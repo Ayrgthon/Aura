@@ -84,7 +84,12 @@ class IntegratedAuraWebSocketHandler:
             mcp_config = {
                 "filesystem": {
                     "command": "npx",
-                    "args": ["-y", "@modelcontextprotocol/server-filesystem", os.path.expanduser("~")],
+                    "args": [
+                        "-y",
+                        "@modelcontextprotocol/server-filesystem",
+                        os.path.expanduser("~"),
+                        "/home/ary/Documentos/Ary Vault"
+                    ],
                     "transport": "stdio"
                 },
                 "brave-search": {
@@ -94,6 +99,11 @@ class IntegratedAuraWebSocketHandler:
                     "env": {
                         "BRAVE_API_KEY": "YOUR_BRAVE_API_KEY_HERE"
                     }
+                },
+                "obsidian-memory": {
+                    "command": "node",
+                    "args": ["./obsidian_memory_server.js"],
+                    "transport": "stdio"
                 }
             }
             

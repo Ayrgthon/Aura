@@ -24,6 +24,7 @@ class AuraWebSocketHandler:
     def __init__(self):
         self.voice_recognizer = None
         self.voice_synthesizer = None
+        self.aura_client = None
         self.clients = set()
         self.is_listening = False
         
@@ -40,7 +41,7 @@ class AuraWebSocketHandler:
             logger.error(f"❌ Error inicializando voz: {e}")
             return False
     
-    async def handle_client(self, websocket, path):
+    async def handle_client(self, websocket, path=None):
         """Maneja la conexión de un cliente WebSocket"""
         self.clients.add(websocket)
         logger.info(f"🔌 Cliente conectado: {websocket.remote_address}")
@@ -77,7 +78,51 @@ class AuraWebSocketHandler:
         """Procesa los mensajes del cliente"""
         msg_type = data.get("type")
         
-        if msg_type == "start_listening":
+        if msg_type == "init_voice":
+            # Inicializar componentes de voz si no están inicializados
+            if not self.voice_recognizer or not self.voice_synthesizer:
+                if self.initialize_voice():
+                    await websocket.send(json.dumps({
+                        "type": "voice_ready",
+                        "message": "Sistema de voz inicializado"
+                    }))
+                else:
+                    await websocket.send(json.dumps({
+                        "type": "error",
+                        "message": "Error inicializando sistema de voz"
+                    }))
+            else:
+                await websocket.send(json.dumps({
+                    "type": "voice_ready",
+                    "message": "Sistema de voz ya estaba inicializado"
+                }))
+            return
+            
+        elif msg_type == "init_aura":
+            # Inicializar cliente Aura con el modelo especificado
+            model_type = data.get("model_type", "gemini")
+            model_name = data.get("model_name", "gemini-2.0-flash-exp")
+            
+            try:
+                from client import AuraClient
+                self.aura_client = AuraClient(
+                    model_type=model_type,
+                    model_name=model_name,
+                    enable_voice=True
+                )
+                await websocket.send(json.dumps({
+                    "type": "aura_ready",
+                    "message": f"Cliente Aura inicializado con {model_type} ({model_name})"
+                }))
+            except Exception as e:
+                logger.error(f"Error inicializando Aura: {e}")
+                await websocket.send(json.dumps({
+                    "type": "error",
+                    "message": f"Error inicializando Aura: {str(e)}"
+                }))
+            return
+            
+        elif msg_type == "start_listening":
             await self.start_listening(websocket)
         elif msg_type == "stop_listening":
             await self.stop_listening(websocket)
@@ -139,6 +184,42 @@ class AuraWebSocketHandler:
                     "timestamp": datetime.now().isoformat()
                 }))
                 logger.info(f"🎤 Texto reconocido: {text}")
+                
+                # Procesar con Aura si está disponible
+                if self.aura_client:
+                    await websocket.send(json.dumps({
+                        "type": "status",
+                        "message": "Procesando texto reconocido con Aura...",
+                        "streaming": True
+                    }))
+                    
+                    try:
+                        # Procesar con Aura en un thread separado para evitar bloqueo
+                        response = await loop.run_in_executor(
+                            None,
+                            lambda: self.aura_client.chat_with_voice(text)
+                        )
+                        
+                        # Enviar respuesta final
+                        await websocket.send(json.dumps({
+                            "type": "aura_response",
+                            "response": response,
+                            "timestamp": datetime.now().isoformat(),
+                            "streaming": False
+                        }))
+                        
+                    except Exception as e:
+                        logger.error(f"Error procesando con Aura: {e}")
+                        await websocket.send(json.dumps({
+                            "type": "error",
+                            "message": f"Error procesando texto: {str(e)}"
+                        }))
+                else:
+                    await websocket.send(json.dumps({
+                        "type": "error",
+                        "message": "Cliente Aura no inicializado"
+                    }))
+                    
             else:
                 await websocket.send(json.dumps({
                     "type": "status",
@@ -156,6 +237,7 @@ class AuraWebSocketHandler:
             await websocket.send(json.dumps({
                 "type": "status",
                 "listening": False,
+                "streaming": False,
                 "message": "Reconocimiento finalizado"
             }))
     
