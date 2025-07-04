@@ -29,4 +29,7 @@ mcp>=1.0.0
 python-dotenv>=1.0.0
 
 # WebSocket para interfaz web
-websockets>=12.0 
+websockets>=12.0
+
+# Mutagen para la nueva dependencia de cálculo de duración MP3
+mutagen>=1.46 

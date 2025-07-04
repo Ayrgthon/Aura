@@ -3,7 +3,7 @@ INFO:__main__:📡 Listo para conexiones (voz y Aura se cargan bajo demanda)
 INFO:websockets.server:server listening on 127.0.0.1:8765
 INFO:websockets.server:server listening on [::1]:8765
 INFO:websockets.server:connection open
-INFO:__main__:🔌 Cliente conectado desde: ('127.0.0.1', 38986)
+INFO:__main__:🔌 Cliente conectado desde: ('127.0.0.1', 55388)
 INFO:__main__:Cargando módulos de voz...
 INFO:__main__:Inicializando reconocimiento de voz...
 LOG (VoskAPI:ReadDataFiles():model.cc:213) Decoding params beam=13 max-active=7000 lattice-beam=6
@@ -27,8 +27,10 @@ Brave Search MCP Server running on stdio
 Secure MCP Filesystem Server running on stdio
 Allowed directories: [ '/home/ary', '/home/ary/Documentos/Ary Vault' ]
 INFO:__main__:✅ Cliente Aura inicializado correctamente con gemini: gemini-2.0-flash-exp
-INFO:__main__:🎤 Texto reconocido: qué notas tengo sobre inteligencia artificial
-🗃️ Obsidian Memory MCP Server iniciado para vault: /home/ary/Documentos/Ary Vault
+INFO:__main__:🎤 Texto reconocido: crea la hipotética trama para la próxima película de spider-man de tom holland
+INFO:__main__:✅ Motor TTS cambiado a: elevenlabs
+INFO:__main__:🎤 Texto reconocido: búscame las últimas noticias sobre spiderman
+Brave Search MCP Server running on stdio
 pygame 2.6.1 (SDL 2.28.4, Python 3.13.5)
 Hello from the pygame community. https://www.pygame.org/contribute.html
 ✅ Motor de reconocimiento de voz (Vosk) iniciado
@@ -64,14 +66,114 @@ Use this when the query implies 'near me' or mentions specific locations. Automa
   - list_vault_structure: Lista la estructura completa del Baúl de Obsidian mostrando carpetas y archivos.
   - get_note_metadata: Obtiene metadatos de una nota: tamaño, fecha de modificación, etiquetas encontradas, wikilinks.
 🎤 Escuchando... (Habla ahora)
-👂 Escuché: 'qué notas tengo sobre inteligencia artificial'
+👂 Escuché: 'crea la hipotética trama para la próxima película de spider-man de tom holland'
+🔧 Usando 20 herramientas MCP con GEMINI
+¡Claro! Aquí tienes una posible trama para la próxima película de Spider-Man con Tom Holland:
+
+La película comienza con Peter Parker adaptándose a su vida universitaria. Intenta equilibrar sus estudios con sus responsabilidades como Spider-Man.
+
+- Un nuevo villano emerge: un científico brillante llamado Dr. Miles Warren, obsesionado con la clonación. Warren crea clones de Spider-Man.
+
+- Estos clones son imperfectos y causan caos en la ciudad. Spider-Man debe luchar contra ellos mientras intenta descubrir el plan de Warren.
+
+- La identidad de Peter se ve amenazada cuando los clones actúan de forma errática. Esto atrae la atención de las autoridades y de los medios.
+
+- Peter busca ayuda de sus amigos, MJ y Ned. Ellos lo ayudan a investigar a Warren y a encontrar una manera de detenerlo.
+
+- La película alcanza su clímax en un enfrentamiento final en el laboratorio de Warren. Spider-Man debe derrotar a Warren y destruir los clones.
+
+- Al final, Peter logra salvar la ciudad y proteger su identidad. Aprende una valiosa lección sobre la responsabilidad y el control.
+
+- La película termina con Peter aceptando su papel como Spider-Man y preparándose para futuros desafíos. Deja la puerta abierta para nuevas aventuras en el universo de Marvel.
+
+✅ Motor TTS cambiado a ElevenLabs
+🎤 Escuchando... (Habla ahora)
+👂 Escuché: 'búscame las últimas noticias sobre spiderman'
 🔧 Usando 20 herramientas MCP con GEMINI
 🔍 Recopilando información...
-🔧 Ejecutando: search_notes
-✅ search_notes completado
+🔧 Ejecutando: brave_web_search
+✅ brave_web_search completado
 
 🧠 Procesando información y generando respuesta natural...
-Ah, me preguntaste sobre tus notas de inteligencia artificial. Por lo que veo, tienes una nota que parece estar relacionada con la inteligencia artificial y su aplicación en el ámbito de la salud mental. En ella, te planteas cómo la IA podría ofrecer soluciones en este campo, especialmente considerando los problemas de baja adherencia que existen actualmente con las aplicaciones de salud mental. Parece que estás pensando en cómo la IA podría mejorar este tipo de soluciones.
+¡Claro! Aquí tienes las últimas novedades sobre Spiderman:
+
+*   Hay un recluso que ha escapado de una prisión trepando los muros como si fuera el mismísimo Spiderman.
+*   Marvel ha confirmado que está trabajando oficialmente en "Spider-Man 4", la próxima película después de "No Way Home". Ya se han iniciado las conversaciones sobre ella.
+*   Puedes encontrar noticias y novedades sobre Spiderman en El País y El Informador.
+*   También puedes ver información sobre el actor que interpreta a Spiderman, incluyendo una historia sobre él y su vida después de convertirse en el superhéroe.
+INFO:__main__:✅ Motor TTS cambiado a: gtts
+INFO:__main__:🎤 Texto reconocido: cuáles son las fuentes de tu búsqueda
+INFO:__main__:🎤 Texto reconocido: bien usando bray búscame las últimas noticias sobre batman
+INFO:__main__:🎤 Texto reconocido: dame una explicación detallada acerca qué es una red neuronal
+INFO:__main__:Inicializando cliente Aura con gemini: gemini-2.5-flash...
+🗃️ Obsidian Memory MCP Server iniciado para vault: /home/ary/Documentos/Ary Vault
+Brave Search MCP Server running on stdio
+Secure MCP Filesystem Server running on stdio
+Allowed directories: [ '/home/ary', '/home/ary/Documentos/Ary Vault' ]
+
+✅ Motor TTS cambiado a gTTS
+🎤 Escuchando... (Habla ahora)
+👂 Escuché: 'cuáles son las fuentes de tu búsqueda'
+🔧 Usando 20 herramientas MCP con GEMINI
+Realicé la búsqueda de noticias sobre Spiderman usando la herramienta de búsqueda web. Esta herramienta utiliza el motor de búsqueda de Brave para encontrar información relevante en internet. No tengo información sobre las fuentes específicas que Brave utilizó para generar los resultados, pero generalmente incluye sitios de noticias, blogs, redes sociales y otros sitios web de acceso público.
+
+🎤 Escuchando... (Habla ahora)
+👂 Escuché: 'bien usando bray búscame las últimas noticias sobre batman'
+🔧 Usando 20 herramientas MCP con GEMINI
+Aquí están las últimas noticias sobre Batman, según la búsqueda web:
+
+- Se rumorea que Jensen Ackles podría ser el nuevo Batman en el universo de James Gunn. Los fans están debatiendo esta posibilidad.
+
+- Ha habido filtraciones sobre posibles proyectos futuros de Batman, incluyendo videojuegos y películas animadas.
+
+- Se han publicado artículos sobre el impacto cultural de Batman a lo largo de los años y su relevancia en la actualidad.
+
+- También hay noticias sobre nuevos cómics y colecciones de Batman que se lanzarán próximamente.
+
+🎤 Escuchando... (Habla ahora)
+👂 Escuché: 'dame una explicación detallada acerca qué es una red neuronal'
+🔧 Usando 20 herramientas MCP con GEMINI
+Una red neuronal es un modelo computacional que intenta simular el funcionamiento del cerebro humano. Imagina que es una serie de "neuronas" interconectadas que trabajan juntas para aprender y resolver problemas.
+
+- Las neuronas están organizadas en capas. Hay una capa de entrada, que recibe la información inicial. Luego hay capas ocultas, donde se realiza el procesamiento. Finalmente, hay una capa de salida, que produce el resultado.
+
+- Cada conexión entre neuronas tiene un "peso" asociado. Este peso determina la importancia de la conexión. Cuando una neurona recibe información, multiplica cada entrada por su peso correspondiente y suma los resultados.
+
+- Luego, la neurona aplica una "función de activación" a esta suma. Esta función decide si la neurona se activa o no. Si se activa, envía su señal a las siguientes neuronas.
+
+- La red aprende ajustando los pesos de las conexiones. Esto se hace mediante un proceso llamado "entrenamiento". Durante el entrenamiento, la red recibe ejemplos de entrada y salida, y ajusta los pesos para minimizar la diferencia entre su predicción y la salida correcta.
+
+- Hay diferentes tipos de redes neuronales, cada una con sus propias características y aplicaciones. Por ejemplo, las redes neuronales convolucionales son muy buenas para el procesamiento de imágenes, mientras que las redes recurrentes son útiles para el procesamiento de secuencias, como el texto.
+
+En resumen, una red neuronal es un sistema de procesamiento de información inspirado en el cerebro humano. Aprende ajustando las conexiones entre neuronas para realizar tareas como clasificación, predicción y reconocimiento de patrones.
+
+🤖 Inicializando Google Gemini: gemini-2.5-flash
+🎤 Sistema de voz activado
+✅ Cliente Aura inicializado con GEMINI
+✅ MCPs configurados correctamente. 20 herramientas disponibles:
+  - read_file: Read the complete contents of a file from the file system. Handles various text encodings and provides detailed error messages if the file cannot be read. Use this tool when you need to examine the contents of a single file. Use the 'head' parameter to read only the first N lines of a file, or the 'tail' parameter to read only the last N lines of a file. Only works within allowed directories.
+  - read_multiple_files: Read the contents of multiple files simultaneously. This is more efficient than reading files one by one when you need to analyze or compare multiple files. Each file's content is returned with its path as a reference. Failed reads for individual files won't stop the entire operation. Only works within allowed directories.
+  - write_file: Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding. Only works within allowed directories.
+  - edit_file: Make line-based edits to a text file. Each edit replaces exact line sequences with new content. Returns a git-style diff showing the changes made. Only works within allowed directories.
+  - create_directory: Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist. Only works within allowed directories.
+  - list_directory: Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory. Only works within allowed directories.
+  - list_directory_with_sizes: Get a detailed listing of all files and directories in a specified path, including sizes. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is useful for understanding directory structure and finding specific files within a directory. Only works within allowed directories.
+  - directory_tree: Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability. Only works within allowed directories.
+  - move_file: Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.
+  - search_files: Recursively search for files and directories matching a pattern. Searches through all subdirectories from the starting path. The search is case-insensitive and matches partial names. Returns full paths to all matching items. Great for finding files when you don't know their exact location. Only searches within allowed directories.
+  - get_file_info: Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type. This tool is perfect for understanding file characteristics without reading the actual content. Only works within allowed directories.
+  - list_allowed_directories: Returns the list of directories that this server is allowed to access. Use this to understand which directories are available before trying to access files.
+  - brave_web_search: Performs a web search using the Brave Search API, ideal for general queries, news, articles, and online content. Use this for broad information gathering, recent events, or when you need diverse web sources. Supports pagination, content filtering, and freshness controls. Maximum 20 results per request, with offset for pagination. 
+  - brave_local_search: Searches for local businesses and places using Brave's Local Search API. Best for queries related to physical locations, businesses, restaurants, services, etc. Returns detailed information including:
+- Business names and addresses
+- Ratings and review counts
+- Phone numbers and opening hours
+Use this when the query implies 'near me' or mentions specific locations. Automatically falls back to web search if no local results are found.
+  - search_notes: Busca notas en el Baúl de Obsidian por contenido, nombre, etiquetas o wikilinks. Soporta búsqueda semántica básica.
+  - read_note: Lee el contenido completo de una nota específica del Baúl de Obsidian.
+  - create_note: Crea una nueva nota en el Baúl de Obsidian con el contenido especificado.INFO:__main__:✅ Cliente Aura inicializado correctamente con gemini: gemini-2.5-flash
+INFO:__main__:✅ Motor TTS cambiado a: elevenlabs
+INFO:__main__:🎤 Texto reconocido: que es particularmente una red neuronal para minimizar la diferencia entre su predicción y la salida correcta hay diferentes tipos de redes neuronales
 INFO:__main__:🔇 Cerrando sistema de voz...
 INFO:__main__:🤖 Cerrando cliente Aura...
 INFO:__main__:✅ Apagado del sistema completado

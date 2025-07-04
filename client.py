@@ -32,7 +32,7 @@ try:
     from engine.voice.speak import (
         speak, stop_speaking, is_speaking,
         start_streaming_tts, add_text_to_stream, finish_streaming_tts,
-        StreamingTTS, VoiceSynthesizer, get_synthesizer
+        StreamingTTS, VoiceSynthesizer, get_synthesizer, speak_async
     )
     VOICE_AVAILABLE = True
     print("✅ Módulos de voz cargados correctamente")
@@ -82,6 +82,11 @@ class StreamingCallbackHandler(BaseCallbackHandler):
         self.voice_enabled = voice_enabled
         self.streaming_tts = None
         self.full_response = ""
+        # Nueva lógica para streaming parcial
+        self.first_paragraph_done = False
+        self.remaining_buffer = ""
+        self.accumulated_first_para = ""
+        self.char_counter = 0
         
     def on_llm_start(self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any) -> None:
         """Llamado cuando el LLM comienza a generar"""
@@ -99,12 +104,34 @@ class StreamingCallbackHandler(BaseCallbackHandler):
         print(token, end='', flush=True)
         self.full_response += token
         
-        # Enviar chunk al TTS en paralelo
-        if self.streaming_tts and self.voice_streaming:
-            try:
-                add_text_to_stream(token)
-            except Exception as e:
-                print(f"\n❌ Error en TTS chunk: {e}")
+        # Streaming sólo para el primer párrafo
+        if self.voice_streaming:
+            if not self.first_paragraph_done:
+                if self.streaming_tts is None and self.voice_enabled:
+                    try:
+                        self.streaming_tts = start_streaming_tts()
+                    except Exception as e:
+                        print(f"❌ Error iniciando TTS streaming: {e}")
+
+                if self.streaming_tts:
+                    try:
+                        add_text_to_stream(token)
+                    except Exception as e:
+                        print(f"\n❌ Error en TTS chunk: {e}")
+
+                # Acumular para detección de fin de primer párrafo
+                self.accumulated_first_para += token
+                self.char_counter += len(token)
+
+                if "\n\n" in self.accumulated_first_para or self.char_counter >= 160:
+                    # Finalizar streaming del primer párrafo
+                    if self.streaming_tts:
+                        finish_streaming_tts()
+                        self.streaming_tts = None
+                    self.first_paragraph_done = True
+            else:
+                # Guardar el resto del texto para reproducirlo después completo
+                self.remaining_buffer += token
     
     def on_llm_error(self, error: Exception, **kwargs: Any) -> None:
         """Llamado cuando ocurre un error"""
@@ -117,12 +144,20 @@ class StreamingCallbackHandler(BaseCallbackHandler):
                 
     def on_llm_end(self, response, **kwargs: Any) -> None:
         """Llamado cuando el LLM termina de generar"""
-        # Finalizar TTS streaming
+        # Asegurar cierre del streaming si sigue abierto
         if self.streaming_tts:
             try:
                 finish_streaming_tts()
             except Exception as e:
                 print(f"\n❌ Error al finalizar TTS streaming: {e}")
+
+        # Reproducir el resto del texto de una sola vez
+        if self.first_paragraph_done and self.remaining_buffer.strip() and self.voice_enabled:
+            try:
+                # Usar speak_async para no bloquear la impresión del texto restante
+                speak_async(self.remaining_buffer.strip())
+            except Exception as e:
+                print(f"❌ Error reproduciendo resto del texto: {e}")
 
 class AuraClient:
     def __init__(self, 
@@ -147,8 +182,18 @@ class AuraClient:
         # Inicializar modelo según el tipo
         self.model = self._initialize_model()
         
-        # Configuraciones
-        self.conversation_history: List[BaseMessage] = []
+        # Mensaje de sistema para guiar la salida a un formato fácil de leer en voz
+        system_instructions = (
+            "Eres AURA, un asistente de voz en español. "
+            "Responde de forma clara, conversacional y sin utilizar markdown ni caracteres especiales como *, #, **, guiones bajos, etc. "
+            "Si necesitas enumerar, utiliza guiones simples '-' al inicio de cada punto. "
+            "Mantén las oraciones cortas para que se lean naturalmente en voz alta. "
+            "Evita emojis y símbolos innecesarios."
+        )
+
+        self.conversation_history: List[BaseMessage] = [
+            HumanMessage(content=system_instructions)
+        ]
         
         # Reactivar TTS de forma controlada
         self.voice_synthesizer = None
@@ -458,22 +503,11 @@ class AuraClient:
         """
         Reproduce una respuesta con streaming y TTS por oraciones
         """
-        if self.voice_enabled and StreamingTTS:
-            streaming_tts = StreamingTTS()
-            if self.voice_synthesizer:
-                streaming_tts.start(self.voice_synthesizer)
-            
-            # Simular streaming carácter por carácter
-            for char in content:
-                print(char, end='', flush=True)
-                if streaming_tts:
-                    streaming_tts.add_text(char)
-                await asyncio.sleep(0.01)  # Pequeña pausa para simular streaming
-            
-            if streaming_tts:
-                streaming_tts.finish()
-        else:
-            print(content)
+        print(content)
+
+        # Reproducir todo el texto con el mecanismo robusto (speak_async maneja división)
+        if self.voice_enabled:
+            speak_async(content)
         
         print()  # Nueva línea
         self.conversation_history.append(AIMessage(content=content))
