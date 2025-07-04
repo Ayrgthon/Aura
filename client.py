@@ -104,9 +104,10 @@ class StreamingCallbackHandler(BaseCallbackHandler):
         print(token, end='', flush=True)
         self.full_response += token
         
-        # Streaming sólo para el primer párrafo
+        # Streaming hasta el primer punto '.', luego el resto se reproduce completo
         if self.voice_streaming:
             if not self.first_paragraph_done:
+                # Iniciar streaming TTS si aún no
                 if self.streaming_tts is None and self.voice_enabled:
                     try:
                         self.streaming_tts = start_streaming_tts()
@@ -119,18 +120,14 @@ class StreamingCallbackHandler(BaseCallbackHandler):
                     except Exception as e:
                         print(f"\n❌ Error en TTS chunk: {e}")
 
-                # Acumular para detección de fin de primer párrafo
-                self.accumulated_first_para += token
-                self.char_counter += len(token)
-
-                if "\n\n" in self.accumulated_first_para or self.char_counter >= 160:
-                    # Finalizar streaming del primer párrafo
+                # Detectar primer punto
+                if '.' in token:
                     if self.streaming_tts:
                         finish_streaming_tts()
                         self.streaming_tts = None
                     self.first_paragraph_done = True
             else:
-                # Guardar el resto del texto para reproducirlo después completo
+                # Guardar el resto
                 self.remaining_buffer += token
     
     def on_llm_error(self, error: Exception, **kwargs: Any) -> None:

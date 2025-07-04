@@ -369,11 +369,12 @@ class IntegratedAuraWebSocketHandler:
                     return self.original_streaming_tts.add_text(text)
                 
                 def finish(self):
+                    # No cambiar estado speaking aquí; el control externo enviará 'false' al terminar todo el audio
                     self.is_active = False
                     asyncio.create_task(self.websocket.send(json.dumps({
                         "type": "tts_status",
-                        "speaking": False,
-                        "message": "TTS streaming completado"
+                        "speaking": True,
+                        "message": "TTS streaming del primer párrafo completado"
                     })))
                     return self.original_streaming_tts.finish()
             
@@ -388,19 +389,53 @@ class IntegratedAuraWebSocketHandler:
             import engine.voice.speak
             engine.voice.speak.StreamingTTS = patched_streaming_tts
             
+            # --- Monitor de estado speaking en tiempo real ---
+            async def tts_monitor():
+                from engine.voice.speak import is_speaking
+                last_state = False
+                idle_start = None
+                loop = asyncio.get_event_loop()
+                try:
+                    while True:
+                        busy = is_speaking()
+                        now = loop.time()
+                        if busy:
+                            idle_start = None
+                            if not last_state:
+                                await websocket.send(json.dumps({
+                                    "type": "tts_status",
+                                    "speaking": True,
+                                    "message": "TTS reproduciendo"
+                                }))
+                                last_state = True
+                        else:
+                            if last_state:  # veníamos hablando
+                                if idle_start is None:
+                                    idle_start = now
+                                elif now - idle_start > 5.0:  # 5 s de silencio
+                                    await websocket.send(json.dumps({
+                                        "type": "tts_status",
+                                        "speaking": False,
+                                        "message": "TTS silencio prolongado"
+                                    }))
+                                    last_state = False
+                                    break  # salir; se considera acabado
+                        await asyncio.sleep(0.1)
+                except asyncio.CancelledError:
+                    pass
+
+            monitor_task = asyncio.create_task(tts_monitor())
             try:
                 response = await self.aura_client.chat_with_voice(text)
+                # Esperar a que el monitor detecte el silencio definitivo
+                await monitor_task
                 return response
             finally:
                 # Restaurar clase original
-                engine.voice.speak.StreamingTTS = original_streaming_tts_class
-                
-                # Notificar que terminó
-                await websocket.send(json.dumps({
-                    "type": "tts_status",
-                    "speaking": False,
-                    "message": "TTS completado"
-                }))
+                try:
+                    engine.voice.speak.StreamingTTS = original_streaming_tts_class
+                except Exception:
+                    pass
             
         except Exception as e:
             logger.error(f"Error en chat_with_voice_streaming: {e}")

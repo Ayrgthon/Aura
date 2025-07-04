@@ -552,12 +552,7 @@ class VoiceSynthesizer:
     def _async_worker(self, text, lang='es', slow=False):
         """Hilo interno que reproduce texto de forma asíncrona"""
         try:
-            # Si muy largo, dividir y reproducir secuencialmente
-            if len(text) > MAX_TTS_CHARACTERS:
-                for part in _split_text_into_chunks(text, MAX_TTS_CHARACTERS):
-                    self.speak_chunk_sequential(part, lang)
-                return
-
+            # Ya no dividimos: reproducir el texto completo en un solo MP3
             # Crear archivo de audio temporal
             audio_file = os.path.join(self.temp_dir, f"response_async_{self.audio_counter}.mp3")
             self.audio_counter += 1
