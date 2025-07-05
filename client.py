@@ -353,7 +353,7 @@ class AuraClient:
             
             # Usar un enfoque de dos fases si hay herramientas MCP
             if self.mcp_tools:
-                return await self._chat_with_mcp_synthesis(user_input)
+                return await self._multi_step_agent(user_input)
             else:
                 return await self._chat_without_mcp(user_input)
             
@@ -362,128 +362,46 @@ class AuraClient:
             print(error_msg)
             return error_msg
     
-    async def _chat_with_mcp_synthesis(self, user_input: str) -> str:
-        """
-        Chat con MCPs usando síntesis natural de respuestas
-        """
-        print(f"🔧 Usando {len(self.mcp_tools)} herramientas MCP con {self.model_type.upper()}")
-        
-        # Fase 1: Ejecutar herramientas MCP y recopilar información
+    async def _multi_step_agent(self, user_input: str) -> str:
+        """Agente estilo ReAct con varios pasos, usando callbacks de voz."""
+        from langchain.schema import HumanMessage, AIMessage
+        # Incluir StreamingTTS solo si hay voz habilitada
+        speak_cb = speak_async if self.voice_enabled else lambda x: None
+
         model_with_tools = self.model.bind_tools(self.mcp_tools)
-        tool_results = []
-        mcp_used = False
-        
-        try:
-            # Obtener respuesta inicial con herramientas
-            response = model_with_tools.invoke(self.conversation_history)
-            
-            # Verificar si se usaron herramientas MCP
-            if hasattr(response, 'tool_calls') and getattr(response, 'tool_calls', None):
-                mcp_used = True
-                print("🔍 Recopilando información...")
-                
-                for tool_call in getattr(response, 'tool_calls', []):
-                    print(f"🔧 Ejecutando: {tool_call['name']} con args: {tool_call.get('args', {})}")
-                    
+
+        messages: List[BaseMessage] = list(self.conversation_history)
+        messages.append(HumanMessage(content=user_input))
+
+        step = 1
+        while True:
+            speak_cb(f"Paso {step}. Pensando…")
+            response = model_with_tools.invoke(messages)
+
+            if hasattr(response, 'tool_calls') and getattr(response, 'tool_calls'):
+                for tool_call in getattr(response, 'tool_calls'):
+                    tool_name = tool_call['name']
+                    speak_cb(f"Ejecutando {tool_name}")
                     try:
-                        tool_result = await self._execute_mcp_tool(tool_call)
-                        tool_results.append({
-                            'tool_name': tool_call['name'],
-                            'query': tool_call.get('args', {}),
-                            'result': tool_result
-                        })
-                        print(f"✅ {tool_call['name']} completado")
-                        
+                        result = await self._execute_mcp_tool(tool_call)
+                        speak_cb(f"{tool_name} completado")
                     except Exception as e:
-                        print(f"❌ Error en {tool_call['name']}: {e}")
-                        tool_results.append({
-                            'tool_name': tool_call['name'],
-                            'query': tool_call.get('args', {}),
-                            'result': f"Error: {e}"
-                        })
-            
-            # Si no se usaron MCPs, respuesta directa
-            if not mcp_used:
-                return await self._stream_response(response.content)
-            
-            # Fase 2: Síntesis natural de la información recopilada
-            print("\n🧠 Procesando información y generando respuesta natural...")
-            return await self._synthesize_natural_response(user_input, tool_results)
-            
-        except Exception as e:
-            print(f"❌ Error en procesamiento MCP: {e}")
-            # Fallback a respuesta simple
-            return await self._chat_without_mcp(user_input)
-    
-    async def _synthesize_natural_response(self, user_input: str, tool_results: List[Dict]) -> str:
-        """
-        Sintetiza una respuesta natural basada en los resultados de las herramientas MCP
-        """
-        # Construir contexto con información recopilada
-        context_parts = [
-            f"Pregunta del usuario: {user_input}",
-            "\nInformación recopilada:",
-        ]
-        
-        for result in tool_results:
-            context_parts.append(
-                f"\n• De {result['tool_name']}: {result['result'][:1500]}..."  # Limitar longitud
-            )
-        
-        context_parts.append(
-            "\nInstrucciones: Basándote en la información anterior, responde la pregunta del usuario de manera natural y conversacional, como si fueras una persona hablando. NO menciones herramientas, APIs o resultados técnicos. NO leas literalmente los resultados. Sintetiza la información y responde directamente la pregunta con un tono humano y natural."
-        )
-        
-        synthesis_prompt = "".join(context_parts)
-        
-        # Crear nueva conversación temporal para la síntesis
-        synthesis_messages = [HumanMessage(content=synthesis_prompt)]
-        
-        # Generar respuesta natural
-        try:
-            natural_response = ""
-            
-            # Streaming de la respuesta sintetizada con TTS por oraciones
-            if self.voice_enabled and StreamingTTS:
-                streaming_tts = StreamingTTS()
-                if self.voice_synthesizer:
-                    streaming_tts.start(self.voice_synthesizer)
-                
-                for chunk in self.model.stream(synthesis_messages):
-                    if hasattr(chunk, 'content') and chunk.content:
-                        content = str(chunk.content) if chunk.content else ""
-                        natural_response += content
-                        print(content, end='', flush=True)
-                        
-                        if streaming_tts:
-                            streaming_tts.add_text(content)
-                
-                if streaming_tts:
-                    streaming_tts.finish()
+                        speak_cb(f"Error en {tool_name}")
+                        result = f"Error: {e}"
+
+                    # Registrar Observación
+                    messages.append(AIMessage(content="", additional_kwargs={'tool_calls':[tool_call]}))
+                    messages.append(HumanMessage(content=f"Observación: {result}"))
+                step += 1
+                continue  # Permitir nuevo ciclo
             else:
-                # Solo texto si no hay TTS
-                for chunk in self.model.stream(synthesis_messages):
-                    if hasattr(chunk, 'content') and chunk.content:
-                        content = chunk.content
-                        natural_response += content
-                        print(content, end='', flush=True)
-            
-            print()  # Nueva línea
-            
-            # Agregar la respuesta sintetizada al historial
-            self.conversation_history.append(AIMessage(content=natural_response))
-            return natural_response
-            
-        except Exception as e:
-            print(f"❌ Error en síntesis: {e}")
-            # Fallback: usar la información bruta pero de forma más limpia
-            fallback_response = f"Según la información encontrada: {tool_results[0]['result'][:500]}..."
-            print(fallback_response)
-            
-            # TTS post-output eliminado para evitar duplicación de audio
-            
-            self.conversation_history.append(AIMessage(content=fallback_response))
-            return fallback_response
+                final_answer = response.content
+                if not isinstance(final_answer, str):
+                    final_answer = str(final_answer)
+                speak_cb("Respuesta lista")
+                # Stream + voz para la respuesta completa
+                await self._stream_response(final_answer)
+                return final_answer
     
     async def _chat_without_mcp(self, user_input: str) -> str:
         """
