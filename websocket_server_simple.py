@@ -80,6 +80,22 @@ class IntegratedAuraWebSocketHandler:
             logger.info(f"Inicializando cliente Aura con {model_type}: {model_name}...")
             from client import AuraClient
             
+            # --- Construir lista de directorios permitidos igual que main.py ---
+            home_dir = os.path.expanduser("~")
+            possible_dirs = [
+                (home_dir, "home"),
+                (f"{home_dir}/Documents", "Documents"),
+                (f"{home_dir}/Documentos", "Documentos"),
+                (f"{home_dir}/Desktop", "Desktop"),
+                (f"{home_dir}/Escritorio", "Escritorio"),
+                (f"{home_dir}/Descargas", "Descargas"),
+                (f"{home_dir}/Downloads", "Downloads"),
+                ("/tmp", "tmp"),
+                ("/home/ary/Documentos/Ary Vault", "Obsidian Vault"),
+            ]
+
+            allowed_dirs = [path for path, _ in possible_dirs if os.path.exists(path)]
+            
             # Configuración de MCP
             mcp_config = {
                 "filesystem": {
@@ -87,8 +103,7 @@ class IntegratedAuraWebSocketHandler:
                     "args": [
                         "-y",
                         "@modelcontextprotocol/server-filesystem",
-                        os.path.expanduser("~"),
-                        "/home/ary/Documentos/Ary Vault"
+                        *allowed_dirs
                     ],
                     "transport": "stdio"
                 },
@@ -126,6 +141,14 @@ class IntegratedAuraWebSocketHandler:
             self.current_model_type = model_type
             self.current_model_name = model_name
             self.aura_initialized = True
+            
+            # Añadir contexto de directorios permitidos al prompt del modelo
+            try:
+                if allowed_dirs:
+                    self.aura_client.add_allowed_directories_context(allowed_dirs)
+            except Exception as e:
+                logger.warning(f"No se pudo añadir contexto de directorios: {e}")
+            
             logger.info(f"✅ Cliente Aura inicializado correctamente con {model_type}: {model_name}")
             return True
             
@@ -395,6 +418,7 @@ class IntegratedAuraWebSocketHandler:
                 last_state = False
                 idle_start = None
                 loop = asyncio.get_event_loop()
+                start_time_global = loop.time()
                 try:
                     while True:
                         busy = is_speaking()
@@ -412,7 +436,7 @@ class IntegratedAuraWebSocketHandler:
                             if last_state:  # veníamos hablando
                                 if idle_start is None:
                                     idle_start = now
-                                elif now - idle_start > 5.0:  # 5 s de silencio
+                                elif now - idle_start > 2.0:  # 2 s de silencio para terminar más rápido
                                     await websocket.send(json.dumps({
                                         "type": "tts_status",
                                         "speaking": False,
@@ -420,6 +444,14 @@ class IntegratedAuraWebSocketHandler:
                                     }))
                                     last_state = False
                                     break  # salir; se considera acabado
+                        # Timeout de seguridad: 60 s máximo
+                        if now - start_time_global > 60:
+                            await websocket.send(json.dumps({
+                                "type": "tts_status",
+                                "speaking": False,
+                                "message": "TTS tiempo máximo alcanzado, cerrando estado"
+                            }))
+                            break
                         await asyncio.sleep(0.1)
                 except asyncio.CancelledError:
                     pass

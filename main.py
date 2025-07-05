@@ -392,13 +392,68 @@ class AuraAssistant:
                     continue
                     
                 print(f"\n🤖 {self.client.model_type.upper()}:", end=" ")
-                await self.client.chat_with_voice(user_input)
+
+                # Si hay herramientas MCP, usar flujo multi-paso
+                if self.client.mcp_tools:
+                    await self._multi_step_agent(user_input)
+                else:
+                    await self.client.chat_with_voice(user_input)
                 
             except KeyboardInterrupt:
                 print("\n👋 ¡Hasta luego!")
                 break
             except Exception as e:
                 print(f"❌ Error: {e}")
+    
+    async def _multi_step_agent(self, user_input: str):
+        """Agente sencillo ReAct con múltiples pasos y callbacks de voz"""
+        from langchain.schema import HumanMessage, AIMessage
+        from engine.voice.speak import speak_async
+
+        if not self.client:
+            print("❌ Cliente no inicializado")
+            return
+
+        model_with_tools = self.client.model.bind_tools(self.client.mcp_tools)
+
+        # Historial temporal que incluye instrucciones de sistema y alias
+        messages = list(self.client.conversation_history)
+        messages.append(HumanMessage(content=user_input))
+
+        step = 1
+        while True:
+            # Pensar
+            speak_async(f"Paso {step}: pensando …")
+            response = model_with_tools.invoke(messages)
+
+            # ¿Pidió herramientas?
+            if hasattr(response, 'tool_calls') and getattr(response, 'tool_calls'):
+                for tool_call in getattr(response, 'tool_calls'):
+                    tool_name = tool_call['name']
+                    args = tool_call.get('args', {})
+                    speak_async(f"Ejecutando {tool_name}")
+                    try:
+                        result = await self.client._execute_mcp_tool(tool_call)
+                        speak_async(f"{tool_name} completado")
+                    except Exception as e:
+                        speak_async(f"Error en {tool_name}")
+                        result = f"Error: {e}"
+
+                    # Añadir al historial
+                    messages.append(AIMessage(content="", additional_kwargs={'tool_calls':[tool_call]}))
+                    messages.append(HumanMessage(content=f"Observación: {result}"))
+                step += 1
+                # Continuar loop para permitir nuevos planes
+                continue
+            else:
+                # Respuesta final
+                final_answer = response.content
+                speak_async("Respuesta lista")
+                print(final_answer)
+                # Guardar en historial global
+                self.client.conversation_history.append(HumanMessage(content=user_input))
+                self.client.conversation_history.append(AIMessage(content=final_answer))
+                break
     
     async def main(self):
         """Función principal del asistente"""

@@ -326,12 +326,13 @@ class AuraClient:
                 result = await target_tool.ainvoke(tool_args)
         except Exception as e:
             # Fallback a invoke si ainvoke no funciona
+            original_error = str(e)
             try:
                 captured_stderr = StringIO()
                 with redirect_stderr(captured_stderr):
                     result = target_tool.invoke(tool_args)
             except Exception as e2:
-                raise Exception(f"Error ejecutando herramienta: {e2}")
+                raise Exception(f"Error ejecutando herramienta: {e2} | Error original async: {original_error}")
         
         return str(result)
 
@@ -382,7 +383,7 @@ class AuraClient:
                 print("🔍 Recopilando información...")
                 
                 for tool_call in getattr(response, 'tool_calls', []):
-                    print(f"🔧 Ejecutando: {tool_call['name']}")
+                    print(f"🔧 Ejecutando: {tool_call['name']} con args: {tool_call.get('args', {})}")
                     
                     try:
                         tool_result = await self._execute_mcp_tool(tool_call)
@@ -536,8 +537,8 @@ class AuraClient:
             "- Siempre que el usuario pida listar, abrir, leer o similar sobre una carpeta o archivo, deduce la ruta completa usando los alias.\n"
             "- Llama a la herramienta adecuada sin solicitar más pistas al usuario.\n"
             "Ejemplos:\n"
-            "  • Usuario: 'lista la carpeta documentos' → Usa list_directory con path='/home/ary/Documentos'.\n"
-            "  • Usuario: 'abre documents' → Usa list_directory con path='/home/ary/Documents'.\n"
+            "  • Usuario: 'lista la carpeta documentos' → Usa list_directory con args={'path': '/home/ary/Documentos'}.\n"
+            "  • Usuario: 'abre documents' → Usa list_directory con args={'path': '/home/ary/Documents'}.\n"
         )
 
         extra_context = (
