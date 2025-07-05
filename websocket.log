@@ -1,9 +1,9 @@
 INFO:__main__:🚀 Servidor WebSocket INTEGRADO iniciado en ws://localhost:8765
 INFO:__main__:📡 Listo para conexiones (voz y Aura se cargan bajo demanda)
-INFO:websockets.server:server listening on [::1]:8765
 INFO:websockets.server:server listening on 127.0.0.1:8765
+INFO:websockets.server:server listening on [::1]:8765
 INFO:websockets.server:connection open
-INFO:__main__:🔌 Cliente conectado desde: ('127.0.0.1', 40872)
+INFO:__main__:🔌 Cliente conectado desde: ('127.0.0.1', 36050)
 INFO:__main__:Cargando módulos de voz...
 INFO:__main__:Inicializando reconocimiento de voz...
 LOG (VoskAPI:ReadDataFiles():model.cc:213) Decoding params beam=13 max-active=7000 lattice-beam=6
@@ -35,7 +35,7 @@ Allowed directories: [
   '/home/ary/Documentos/Ary Vault'
 ]
 INFO:__main__:✅ Cliente Aura inicializado correctamente con gemini: gemini-2.0-flash-exp
-INFO:__main__:Inicializando cliente Aura con gemini: gemini-2.5-flash...
+INFO:__main__:Inicializando cliente Aura con gemini: gemini-2.0-flash...
 🗃️ Obsidian Memory MCP Server iniciado para vault: /home/ary/Documentos/Ary Vault
 Brave Search MCP Server running on stdio
 Secure MCP Filesystem Server running on stdio
@@ -82,216 +82,6 @@ Use this when the query implies 'near me' or mentions specific locations. Automa
   - update_note: Actualiza una nota existente agregando contenido o reemplazándolo.
   - list_vault_structure: Lista la estructura completa del Baúl de Obsidian mostrando carpetas y archivos.
   - get_note_metadata: Obtiene metadatos de una nota: tamaño, fecha de modificación, etiquetas encontradas, wikilinks.
-🤖 Inicializando Google Gemini: gemini-2.5-flash
-🎤 Sistema de voz activado
-✅ Cliente Aura inicializado con GEMINI
-✅ MCPs configurados correctamente. 20 herramientas disponibles:
-  - read_file: Read the complete contents of a file from the file system. Handles various text encodings and provides detailed error messages if the file cannot be read. Use this tool when you need to examine the contents of a single file. Use the 'head' parameter to read only the first N lines of a file, or the 'tail' parameter to read only the last N lines of a file. Only works within allowed directories.
-  - read_multiple_files: Read the contents of multiple files simultaneously. This is more efficient than reading files one by one when you need to analyze or compare multiple files. Each file's content is returned with its path as a reference. Failed reads for individual files won't stop the entire operation. Only works within allowed directories.
-  - write_file: Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding. Only works within allowed directories.
-  - edit_file: Make line-based edits to a text file. Each edit replaces exact line sequences with new content. Returns a git-style diff showing the changes made. Only works within allowed directories.
-  - create_directory: Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist. Only works within allowed directories.
-  - list_directory: Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory. Only works within allowed directories.
-  - list_directory_with_sizes: Get a detailed listing of all files and directories in a specified path, including sizes. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is useful for understanding directory structure and finding specific files within a directory. Only works within allowed directories.INFO:__main__:✅ Cliente Aura inicializado correctamente con gemini: gemini-2.5-flash
-INFO:__main__:🎤 Texto reconocido: busca mi proyecto aura y hazme un resumen del archivo readme
-Secure MCP Filesystem Server running on stdio
-Allowed directories: [
-  '/home/ary',
-  '/home/ary/Documents',
-  '/home/ary/Documentos',
-  '/home/ary/Escritorio',
-  '/home/ary/Descargas',
-  '/tmp',
-  '/home/ary/Documentos/Ary Vault'
-]
-Secure MCP Filesystem Server running on stdio
-Allowed directories: [
-  '/home/ary',
-  '/home/ary/Documents',
-  '/home/ary/Documentos',
-  '/home/ary/Escritorio',
-  '/home/ary/Descargas',
-  '/tmp',
-  '/home/ary/Documentos/Ary Vault'
-]
-Secure MCP Filesystem Server running on stdio
-Allowed directories: [
-  '/home/ary',
-  '/home/ary/Documents',
-  '/home/ary/Documentos',
-  '/home/ary/Escritorio',
-  '/home/ary/Descargas',
-  '/tmp',
-  '/home/ary/Documentos/Ary Vault'
-]
-Secure MCP Filesystem Server running on stdio
-Allowed directories: [
-  '/home/ary',
-  '/home/ary/Documents',
-  '/home/ary/Documentos',
-  '/home/ary/Escritorio',
-  '/home/ary/Descargas',
-  '/tmp',
-  '/home/ary/Documentos/Ary Vault'
-]
-Secure MCP Filesystem Server running on stdio
-Allowed directories: [
-  '/home/ary',
-  '/home/ary/Documents',
-  '/home/ary/Documentos',
-  '/home/ary/Escritorio',
-  '/home/ary/Descargas',
-  '/tmp',
-  '/home/ary/Documentos/Ary Vault'
-]
-Secure MCP Filesystem Server running on stdio
-Allowed directories: [
-  '/home/ary',
-  '/home/ary/Documents',
-  '/home/ary/Documentos',
-  '/home/ary/Escritorio',
-  '/home/ary/Descargas',
-  '/tmp',
-  '/home/ary/Documentos/Ary Vault'
-]
-Secure MCP Filesystem Server running on stdio
-Allowed directories: [
-  '/home/ary',
-  '/home/ary/Documents',
-  '/home/ary/Documentos',
-  '/home/ary/Escritorio',
-  '/home/ary/Descargas',
-  '/tmp',
-  '/home/ary/Documentos/Ary Vault'
-]
-Secure MCP Filesystem Server running on stdio
-Allowed directories: [
-  '/home/ary',
-  '/home/ary/Documents',
-  '/home/ary/Documentos',
-  '/home/ary/Escritorio',
-  '/home/ary/Descargas',
-  '/tmp',
-  '/home/ary/Documentos/Ary Vault'
-]
-Secure MCP Filesystem Server running on stdio
-Allowed directories: [
-  '/home/ary',
-  '/home/ary/Documents',
-  '/home/ary/Documentos',
-  '/home/ary/Escritorio',
-  '/home/ary/Descargas',
-  '/tmp',
-  '/home/ary/Documentos/Ary Vault'
-]
-Secure MCP Filesystem Server running on stdio
-Allowed directories: [
-  '/home/ary',
-  '/home/ary/Documents',
-  '/home/ary/Documentos',
-  '/home/ary/Escritorio',
-  '/home/ary/Descargas',
-  '/tmp',
-  '/home/ary/Documentos/Ary Vault'
-]
-Secure MCP Filesystem Server running on stdio
-Allowed directories: [
-  '/home/ary',
-  '/home/ary/Documents',
-  '/home/ary/Documentos',
-  '/home/ary/Escritorio',
-  '/home/ary/Descargas',
-  '/tmp',
-  '/home/ary/Documentos/Ary Vault'
-]
-INFO:__main__:Inicializando cliente Aura con gemini: gemini-2.0-flash...
-🗃️ Obsidian Memory MCP Server iniciado para vault: /home/ary/Documentos/Ary Vault
-Brave Search MCP Server running on stdio
-Secure MCP Filesystem Server running on stdio
-Allowed directories: [
-  '/home/ary',
-  '/home/ary/Documents',
-  '/home/ary/Documentos',
-  '/home/ary/Escritorio',
-  '/home/ary/Descargas',
-  '/tmp',
-  '/home/ary/Documentos/Ary Vault'
-]
-
-  - directory_tree: Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability. Only works within allowed directories.
-  - move_file: Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.
-  - search_files: Recursively search for files and directories matching a pattern. Searches through all subdirectories from the starting path. The search is case-insensitive and matches partial names. Returns full paths to all matching items. Great for finding files when you don't know their exact location. Only searches within allowed directories.
-  - get_file_info: Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type. This tool is perfect for understanding file characteristics without reading the actual content. Only works within allowed directories.
-  - list_allowed_directories: Returns the list of directories that this server is allowed to access. Use this to understand which directories are available before trying to access files.
-  - brave_web_search: Performs a web search using the Brave Search API, ideal for general queries, news, articles, and online content. Use this for broad information gathering, recent events, or when you need diverse web sources. Supports pagination, content filtering, and freshness controls. Maximum 20 results per request, with offset for pagination. 
-  - brave_local_search: Searches for local businesses and places using Brave's Local Search API. Best for queries related to physical locations, businesses, restaurants, services, etc. Returns detailed information including:
-- Business names and addresses
-- Ratings and review counts
-- Phone numbers and opening hours
-Use this when the query implies 'near me' or mentions specific locations. Automatically falls back to web search if no local results are found.
-  - search_notes: Busca notas en el Baúl de Obsidian por contenido, nombre, etiquetas o wikilinks. Soporta búsqueda semántica básica.
-  - read_note: Lee el contenido completo de una nota específica del Baúl de Obsidian.
-  - create_note: Crea una nueva nota en el Baúl de Obsidian con el contenido especificado.
-  - update_note: Actualiza una nota existente agregando contenido o reemplazándolo.
-  - list_vault_structure: Lista la estructura completa del Baúl de Obsidian mostrando carpetas y archivos.
-  - get_note_metadata: Obtiene metadatos de una nota: tamaño, fecha de modificación, etiquetas encontradas, wikilinks.
-🎤 Escuchando... (Habla ahora)
-👂 Escuché: 'busca mi proyecto aura y hazme un resumen del archivo readme'
-🗣️ Diciendo (GTTS): Paso 1. Pensando…
-🗣️ Diciendo (GTTS): Ejecutando search_files
-🗣️ Diciendo (GTTS): search_files completado
-🗣️ Diciendo (GTTS): Paso 2. Pensando…
-🗣️ Diciendo (GTTS): Ejecutando search_files
-🗣️ Diciendo (GTTS): search_files completado
-🗣️ Diciendo (GTTS): Paso 3. Pensando…
-🗣️ Diciendo (GTTS): Ejecutando list_directory
-🗣️ Diciendo (GTTS): list_directory completado
-🗣️ Diciendo (GTTS): Paso 4. Pensando…
-🗣️ Diciendo (GTTS): Ejecutando list_directory
-🗣️ Diciendo (GTTS): list_directory completado
-🗣️ Diciendo (GTTS): Paso 5. Pensando…
-🗣️ Diciendo (GTTS): Ejecutando list_directory
-🗣️ Diciendo (GTTS): list_directory completado
-🗣️ Diciendo (GTTS): Paso 6. Pensando…
-🗣️ Diciendo (GTTS): Ejecutando list_directory
-🗣️ Diciendo (GTTS): list_directory completado
-🗣️ Diciendo (GTTS): Paso 7. Pensando…
-🗣️ Diciendo (GTTS): Ejecutando list_directory
-🗣️ Diciendo (GTTS): list_directory completado
-🗣️ Diciendo (GTTS): Paso 8. Pensando…
-🗣️ Diciendo (GTTS): Ejecutando list_directory
-🗣️ Diciendo (GTTS): list_directory completado
-🗣️ Diciendo (GTTS): Paso 9. Pensando…
-🗣️ Diciendo (GTTS): Ejecutando list_directory
-🗣️ Diciendo (GTTS): list_directory completado
-🗣️ Diciendo (GTTS): Paso 10. Pensando…
-🗣️ Diciendo (GTTS): Ejecutando list_directory
-🗣️ Diciendo (GTTS): list_directory completado
-🗣️ Diciendo (GTTS): Paso 11. Pensando…
-🗣️ Diciendo (GTTS): Ejecutando list_directory
-🗣️ Diciendo (GTTS): list_directory completado
-🗣️ Diciendo (GTTS): Paso 12. Pensando…
-❌ Error en chat: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. [violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
-  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.5-flash"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-  quota_value: 10
-}
-, links {
-  description: "Learn more about Gemini API quotas"
-  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
-}
-, retry_delay {
-  seconds: 18
-}
-]
 🤖 Inicializando Google Gemini: gemini-2.0-flash
 🎤 Sistema de voz activado
 ✅ Cliente Aura inicializado con GEMINI
@@ -302,12 +92,8 @@ Use this when the query implies 'near me' or mentions specific locations. Automa
   - edit_file: Make line-based edits to a text file. Each edit replaces exact line sequences with new content. Returns a git-style diff showing the changes made. Only works within allowed directories.
   - create_directory: Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist. Only works within allowed directories.
   - list_directory: Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory. Only works within allowed directories.
-  - list_directory_with_sizes: Get a detailed listing of all files and directories in a specified path, including sizes. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is useful for understanding directory structure and finding specific files within a directory. Only works within allowed directories.
-  - directory_tree: Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability. Only works within allowed directories.INFO:__main__:✅ Cliente Aura inicializado correctamente con gemini: gemini-2.0-flash
-INFO:__main__:🎤 Texto reconocido: busca mi proyecto aura y hazme un resumen del proyecto ridley
-🗃️ Obsidian Memory MCP Server iniciado para vault: /home/ary/Documentos/Ary Vault
-🗃️ Obsidian Memory MCP Server iniciado para vault: /home/ary/Documentos/Ary Vault
-INFO:__main__:🎤 Texto reconocido: mi error quise decir busca mi proyecto ahora y hazme un resumen del archivo leerme
+  - list_directory_with_sizes: Get a detailed listing of all files and directories in a specified path, including sizes. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is useful for understanding directory structure and finding specific files within a directory. Only works within allowed directories.INFO:__main__:✅ Cliente Aura inicializado correctamente con gemini: gemini-2.0-flash
+INFO:__main__:🎤 Texto reconocido: busca mi proyecto aura y hazme un resumen del archivo leerme
 Secure MCP Filesystem Server running on stdio
 Allowed directories: [
   '/home/ary',
@@ -318,7 +104,7 @@ Allowed directories: [
   '/tmp',
   '/home/ary/Documentos/Ary Vault'
 ]
-INFO:__main__:🎤 Texto reconocido: es leerme en inglés solo que por el text por el espíritu de que estoy usando no no lo puedo buscar escribe leerme pero en inglés
+INFO:__main__:🎤 Texto reconocido: esta es la carpeta documentos y el nombre exacto no es leerme yo lo digo en español pero es en inglés se busca leerme pero en inglés
 Secure MCP Filesystem Server running on stdio
 Allowed directories: [
   '/home/ary',
@@ -329,6 +115,17 @@ Allowed directories: [
   '/tmp',
   '/home/ary/Documentos/Ary Vault'
 ]
+Secure MCP Filesystem Server running on stdio
+Allowed directories: [
+  '/home/ary',
+  '/home/ary/Documents',
+  '/home/ary/Documentos',
+  '/home/ary/Escritorio',
+  '/home/ary/Descargas',
+  '/tmp',
+  '/home/ary/Documentos/Ary Vault'
+]
+INFO:__main__:🎤 Texto reconocido: correcto está en esa carpeta de aura o lama
 Secure MCP Filesystem Server running on stdio
 Allowed directories: [
   '/home/ary',

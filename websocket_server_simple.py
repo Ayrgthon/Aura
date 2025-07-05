@@ -436,14 +436,18 @@ class IntegratedAuraWebSocketHandler:
                             if last_state:  # veníamos hablando
                                 if idle_start is None:
                                     idle_start = now
-                                elif now - idle_start > 2.0:  # 2 s de silencio para terminar más rápido
+                                elif now - idle_start > 4.5:  # 4.5 s de silencio real antes de finalizar
+                                    # Detener lógica pero mantener animación 1 s extra
                                     await websocket.send(json.dumps({
                                         "type": "tts_status",
                                         "speaking": False,
+                                        "speaking_animation": True,
                                         "message": "TTS silencio prolongado"
                                     }))
+                                    # Programar apagado de animación después de 1 s
+                                    asyncio.create_task(self._send_animation_status(websocket, False))
                                     last_state = False
-                                    break  # salir; se considera acabado
+                                    break
                         # Timeout de seguridad: 60 s máximo
                         if now - start_time_global > 60:
                             await websocket.send(json.dumps({
@@ -638,6 +642,16 @@ class IntegratedAuraWebSocketHandler:
                 "type": "error",
                 "message": f"Error en síntesis: {str(e)}"
             }))
+
+    async def _send_animation_status(self, websocket, active: bool):
+        """Envía estado de animación de la onda sonora"""
+        try:
+            await websocket.send(json.dumps({
+                "type": "tts_status",
+                "speaking_animation": active
+            }))
+        except Exception:
+            pass
 
 async def main():
     """Función principal del servidor WebSocket integrado"""

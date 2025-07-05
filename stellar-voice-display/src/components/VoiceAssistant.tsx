@@ -258,7 +258,9 @@ const VoiceAssistant = () => {
           // Manejar estado de TTS streaming para animación de la esfera
           if (message.speaking !== undefined) {
             setIsSpeaking(message.speaking);
-            setIsStreaming(message.speaking); // También activar streaming para animación
+          }
+          if (message.speaking_animation !== undefined) {
+            setIsStreaming(message.speaking_animation);
           }
           // Mostrar mensaje opcional en consola para debugging
           if (message.message) {
