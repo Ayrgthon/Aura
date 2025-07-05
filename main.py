@@ -192,6 +192,12 @@ class AuraAssistant:
         
         if success:
             print("✅ Servidores MCP configurados correctamente")
+            # Si se detectaron directorios permitidos para filesystem, pásalos al cliente
+            if hasattr(self, "allowed_dirs") and self.allowed_dirs:
+                try:
+                    self.client.add_allowed_directories_context(self.allowed_dirs)  # type: ignore
+                except Exception as e:
+                    print(f"⚠️  No se pudo añadir contexto de directorios: {e}")
             return True
         else:
             print("⚠️  MCP no disponible, continuando sin herramientas adicionales")
@@ -225,6 +231,9 @@ class AuraAssistant:
             return {}
         
         print(f"✅ {len(allowed_dirs)} directorios configurados para acceso MCP")
+        
+        # Guardar para que el cliente pueda añadirlos al prompt de sistema más tarde
+        self.allowed_dirs = allowed_dirs
         
         return {
             "filesystem": {

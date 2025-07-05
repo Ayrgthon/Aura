@@ -216,7 +216,9 @@ class AuraClient:
             print(f"🤖 Inicializando Google Gemini: {model_name}")
             return ChatGoogleGenerativeAI(
                 model=model_name,
-                convert_system_message_to_human=True
+                convert_system_message_to_human=True,
+                temperature=0.01
+
             )
         
         elif self.model_type == "ollama":
@@ -509,6 +511,46 @@ class AuraClient:
         print()  # Nueva línea
         self.conversation_history.append(AIMessage(content=content))
         return content
+
+    def add_allowed_directories_context(self, allowed_dirs: List[str]):
+        """Agrega al historial un mensaje de sistema con los directorios permitidos.
+
+        Esto ayuda al modelo a mapear nombres hablados como "Documentos" al path real.
+        """
+        if not allowed_dirs:
+            return
+        # Construir el texto explicativo
+        dirs_formatted = ", ".join(allowed_dirs)
+        # Crear alias insensibles a mayúsculas
+        alias_lines = []
+        for path in allowed_dirs:
+            base = os.path.basename(path)
+            if base:
+                alias_lines.append(f"  - '{base.lower()}' → {path}")
+
+        alias_block = "\n".join(alias_lines)
+
+        # Instrucciones y ejemplos claros
+        instructions_block = (
+            "Instrucciones para el uso de herramientas:\n"
+            "- Siempre que el usuario pida listar, abrir, leer o similar sobre una carpeta o archivo, deduce la ruta completa usando los alias.\n"
+            "- Llama a la herramienta adecuada sin solicitar más pistas al usuario.\n"
+            "Ejemplos:\n"
+            "  • Usuario: 'lista la carpeta documentos' → Usa list_directory con path='/home/ary/Documentos'.\n"
+            "  • Usuario: 'abre documents' → Usa list_directory con path='/home/ary/Documents'.\n"
+        )
+
+        extra_context = (
+            "Contexto: Estos son los directorios disponibles (acceso garantizado): "
+            f"{dirs_formatted}.\n"
+            "Alias útiles (no distinguen mayúsculas/minúsculas):\n"
+            f"{alias_block}.\n"
+            f"{instructions_block}"
+            "Recuerda NO preguntar rutas completas; usa los alias para resolverlas automáticamente."
+        )
+        # Insertar justo después del mensaje de instrucciones original para mantener prioridad
+        insert_index = 1 if len(self.conversation_history) >= 1 else 0
+        self.conversation_history.insert(insert_index, HumanMessage(content=extra_context))
 
 # Alias para mantener compatibilidad con el código existente
 GeminiClient = AuraClient
