@@ -12,9 +12,14 @@ import os
 from datetime import datetime
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from dotenv import load_dotenv
 
-# Agregar el directorio actual al path para importar client
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Cargar variables de entorno
+load_dotenv()
+
+# Agregar el directorio raíz del proyecto al path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -43,8 +48,8 @@ class IntegratedAuraWebSocketHandler:
             
         try:
             logger.info("Cargando módulos de voz...")
-            from engine.voice.hear import initialize_recognizer
-            from engine.voice.speak import get_synthesizer
+            from voice.hear import initialize_recognizer
+            from voice.speak import get_synthesizer
             
             logger.info("Inicializando reconocimiento de voz...")
             self.voice_recognizer = initialize_recognizer()
@@ -78,7 +83,7 @@ class IntegratedAuraWebSocketHandler:
             
         try:
             logger.info(f"Inicializando cliente Aura con {model_type}: {model_name}...")
-            from client import AuraClient
+            from src.client import AuraClient
             
             # --- Construir lista de directorios permitidos igual que main.py ---
             home_dir = os.path.expanduser("~")
@@ -96,6 +101,9 @@ class IntegratedAuraWebSocketHandler:
 
             allowed_dirs = [path for path, _ in possible_dirs if os.path.exists(path)]
             
+            # Obtener la ruta del proyecto
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            
             # Configuración de MCP
             mcp_config = {
                 "filesystem": {
@@ -112,12 +120,12 @@ class IntegratedAuraWebSocketHandler:
                     "args": ["-y", "@modelcontextprotocol/server-brave-search"],
                     "transport": "stdio",
                     "env": {
-                        "BRAVE_API_KEY": "YOUR_BRAVE_API_KEY_HERE"
+                        "BRAVE_API_KEY": os.getenv("BRAVE_API_KEY", "")
                     }
                 },
                 "obsidian-memory": {
                     "command": "node",
-                    "args": ["./obsidian_memory_server.js"],
+                    "args": [os.path.join(project_root, "mcp", "obsidian_memory_server.js")],
                     "transport": "stdio"
                 }
             }
@@ -402,19 +410,19 @@ class IntegratedAuraWebSocketHandler:
                     return self.original_streaming_tts.finish()
             
             # Monkey patch temporal para interceptar el streaming TTS
-            from engine.voice.speak import StreamingTTS
+            from voice.speak import StreamingTTS
             original_streaming_tts_class = StreamingTTS
             
             def patched_streaming_tts():
                 return WebSocketStreamingTTS(websocket, original_streaming_tts_class())
             
             # Ejecutar chat con el patch
-            import engine.voice.speak
-            engine.voice.speak.StreamingTTS = patched_streaming_tts
+            import voice.speak
+            voice.speak.StreamingTTS = patched_streaming_tts
             
             # --- Monitor de estado speaking en tiempo real ---
             async def tts_monitor():
-                from engine.voice.speak import is_speaking
+                from voice.speak import is_speaking
                 last_state = False
                 idle_start = None
                 loop = asyncio.get_event_loop()
@@ -469,7 +477,7 @@ class IntegratedAuraWebSocketHandler:
             finally:
                 # Restaurar clase original
                 try:
-                    engine.voice.speak.StreamingTTS = original_streaming_tts_class
+                    voice.speak.StreamingTTS = original_streaming_tts_class
                 except Exception:
                     pass
             
@@ -486,7 +494,7 @@ class IntegratedAuraWebSocketHandler:
         """Maneja el cambio de motor TTS"""
         try:
             # Importar la función para cambiar el motor TTS
-            from engine.voice.speak import set_tts_engine, get_current_tts_engine
+            from voice.speak import set_tts_engine, get_current_tts_engine
             
             success = set_tts_engine(engine)
             
@@ -543,7 +551,7 @@ class IntegratedAuraWebSocketHandler:
             loop = asyncio.get_event_loop()
             
             # Importar aquí para evitar carga inicial
-            from engine.voice.hear import listen_for_command
+            from voice.hear import listen_for_command
             
             text = await loop.run_in_executor(
                 None, 
@@ -623,7 +631,7 @@ class IntegratedAuraWebSocketHandler:
             }))
             
             # Importar aquí para evitar carga inicial
-            from engine.voice.speak import speak
+            from voice.speak import speak
             
             # Sintetizar en thread separado
             loop = asyncio.get_event_loop()

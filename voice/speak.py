@@ -34,7 +34,7 @@ except ImportError:
 CURRENT_TTS_ENGINE = 'gtts'  # Por defecto gTTS para ahorrar API
 
 # Configuración ElevenLabs
-ELEVENLABS_API_KEY = "YOUR_ELEVENLABS_API_KEY_HERE"
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_URL = "https://api.elevenlabs.io/v1/text-to-speech/"
 
 # Voces populares de ElevenLabs en español

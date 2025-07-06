@@ -15,6 +15,10 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.schema import HumanMessage, AIMessage, BaseMessage
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
 
 # Silenciar todos los warnings molestos
 warnings.filterwarnings("ignore", message="Convert_system_message_to_human will be deprecated!")
@@ -28,8 +32,8 @@ logging.getLogger("langchain_google_genai").setLevel(logging.ERROR)
 
 # Importar módulos de voz
 try:
-    from engine.voice.hear import initialize_recognizer, listen_for_command
-    from engine.voice.speak import (
+    from voice.hear import initialize_recognizer, listen_for_command
+    from voice.speak import (
         speak, stop_speaking, is_speaking,
         start_streaming_tts, add_text_to_stream, finish_streaming_tts,
         StreamingTTS, VoiceSynthesizer, get_synthesizer, speak_async
@@ -70,7 +74,11 @@ except ImportError as e:
 
 # Configurar API Key de Google
 if GEMINI_AVAILABLE:
-    os.environ["GOOGLE_API_KEY"] = "YOUR_GOOGLE_API_KEY_HERE"
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    if google_api_key:
+        os.environ["GOOGLE_API_KEY"] = google_api_key
+    else:
+        print("⚠️  GOOGLE_API_KEY no encontrada en .env")
 
 class StreamingCallbackHandler(BaseCallbackHandler):
     """

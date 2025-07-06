@@ -10,8 +10,16 @@ import warnings
 import subprocess
 import threading
 import time
-from client import AuraClient
-from engine.voice.hear import initialize_recognizer, listen_for_command
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.client import AuraClient
+from voice.hear import initialize_recognizer, listen_for_command
 
 # Silenciar warnings
 warnings.filterwarnings("ignore")
@@ -246,7 +254,13 @@ class AuraAssistant:
     def _get_brave_search_config(self):
         """Obtiene la configuración del MCP Brave Search"""
         print("🔍 Configurando Brave Search...")
-        print("✅ Usando API key demo para búsquedas web")
+        
+        brave_api_key = os.getenv("BRAVE_API_KEY")
+        if not brave_api_key:
+            print("⚠️  BRAVE_API_KEY no encontrada en .env")
+            return {}
+        
+        print("✅ Usando API key de Brave Search")
         
         return {
             "brave-search": {
@@ -254,7 +268,7 @@ class AuraAssistant:
                 "args": ["-y", "@modelcontextprotocol/server-brave-search"],
                 "transport": "stdio",
                 "env": {
-                    "BRAVE_API_KEY": "YOUR_BRAVE_API_KEY_HERE"
+                    "BRAVE_API_KEY": brave_api_key
                 }
             }
         }
@@ -283,7 +297,7 @@ class AuraAssistant:
         return {
             "obsidian-memory": {
                 "command": "node",
-                "args": [server_path],
+                "args": ["./mcp/obsidian_memory_server.js"],
                 "transport": "stdio"
             }
         }

@@ -12,7 +12,9 @@ import json
 from vosk import Model, KaldiRecognizer
 
 # --- Configuración ---
-MODEL_PATH = "engine/voice/vosk-model-es-0.42"
+# Obtener la ruta del directorio actual del script
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(SCRIPT_DIR, "vosk-model-es-0.42")
 SAMPLE_RATE = 16000
 DEVICE = None
 BLOCKSIZE = 8000
