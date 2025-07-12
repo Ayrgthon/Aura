@@ -139,14 +139,17 @@ class AuraAssistant:
         print("1. 📁 Solo Filesystem (operaciones con archivos)")
         print("2. 🔍 Solo Brave Search (búsquedas web)")
         print("3. 🗃️ Solo Obsidian Memory (memoria centralizada)")
-        print("4. 🌐 Filesystem + Brave Search")
-        print("5. 🧠 Obsidian Memory + Brave Search (recomendado)")
-        print("6. 🔧 Filesystem + Obsidian Memory + Brave Search (completo)")
-        print("7. ❌ Sin MCP")
+        print("4. 🌐 Solo Playwright (automatización web)")
+        print("5. 🌐 Filesystem + Brave Search")
+        print("6. 🧠 Obsidian Memory + Brave Search (recomendado)")
+        print("7. 🔧 Filesystem + Obsidian Memory + Brave Search")
+        print("8. 🚀 Filesystem + Brave Search + Playwright (ecommerce)")
+        print("9. ⭐ Todos los MCPs (completo)")
+        print("0. ❌ Sin MCP")
         
         while True:
             try:
-                choice = input("\nSelecciona configuración MCP (1-7): ").strip()
+                choice = input("\nSelecciona configuración MCP (1-9, 0): ").strip()
                 
                 if choice == "1":
                     # Solo filesystem
@@ -161,30 +164,49 @@ class AuraAssistant:
                     mcp_config = self._get_obsidian_memory_config()
                     break
                 elif choice == "4":
+                    # Solo Playwright
+                    mcp_config = self._get_playwright_config()
+                    break
+                elif choice == "5":
                     # Filesystem + Brave Search
                     filesystem_config = self._get_filesystem_config()
                     brave_config = self._get_brave_search_config()
                     mcp_config = {**filesystem_config, **brave_config}
                     break
-                elif choice == "5":
+                elif choice == "6":
                     # Obsidian Memory + Brave Search
                     obsidian_config = self._get_obsidian_memory_config()
                     brave_config = self._get_brave_search_config()
                     mcp_config = {**obsidian_config, **brave_config}
                     break
-                elif choice == "6":
-                    # Todos los MCPs
+                elif choice == "7":
+                    # Filesystem + Obsidian Memory + Brave Search
                     filesystem_config = self._get_filesystem_config()
                     brave_config = self._get_brave_search_config()
                     obsidian_config = self._get_obsidian_memory_config()
                     mcp_config = {**filesystem_config, **brave_config, **obsidian_config}
                     break
-                elif choice == "7":
+                elif choice == "8":
+                    # Filesystem + Brave Search + Playwright (ecommerce)
+                    filesystem_config = self._get_filesystem_config()
+                    brave_config = self._get_brave_search_config()
+                    playwright_config = self._get_playwright_config()
+                    mcp_config = {**filesystem_config, **brave_config, **playwright_config}
+                    break
+                elif choice == "9":
+                    # Todos los MCPs
+                    filesystem_config = self._get_filesystem_config()
+                    brave_config = self._get_brave_search_config()
+                    obsidian_config = self._get_obsidian_memory_config()
+                    playwright_config = self._get_playwright_config()
+                    mcp_config = {**filesystem_config, **brave_config, **obsidian_config, **playwright_config}
+                    break
+                elif choice == "0":
                     # Sin MCP
                     print("✅ Continuando sin MCP")
                     return False
                 else:
-                    print("❌ Opción no válida. Selecciona 1, 2, 3, 4, 5, 6 o 7.")
+                    print("❌ Opción no válida. Selecciona 1, 2, 3, 4, 5, 6, 7, 8, 9 o 0.")
                     continue
                     
             except KeyboardInterrupt:
@@ -298,6 +320,33 @@ class AuraAssistant:
             "obsidian-memory": {
                 "command": "node",
                 "args": ["./mcp/obsidian_memory_server.js"],
+                "transport": "stdio"
+            }
+        }
+    
+    def _get_playwright_config(self):
+        """Obtiene la configuración del MCP Playwright"""
+        print("🌐 Configurando Playwright...")
+        
+        # Verificar que Playwright está instalado
+        try:
+            import subprocess
+            result = subprocess.run(["npx", "playwright", "--version"], 
+                                  capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                print("✅ Playwright detectado y listo")
+            else:
+                print("⚠️  Playwright no está completamente instalado")
+                print("💡 Ejecuta: npx playwright install")
+                return {}
+        except Exception as e:
+            print(f"⚠️  Error verificando Playwright: {e}")
+            return {}
+        
+        return {
+            "playwright": {
+                "command": "npx",
+                "args": ["-y", "@playwright/mcp"],
                 "transport": "stdio"
             }
         }
@@ -422,7 +471,7 @@ class AuraAssistant:
     async def _multi_step_agent(self, user_input: str):
         """Agente sencillo ReAct con múltiples pasos y callbacks de voz"""
         from langchain.schema import HumanMessage, AIMessage
-        from engine.voice.speak import speak_async
+        from voice.speak import speak_async
 
         if not self.client:
             print("❌ Cliente no inicializado")

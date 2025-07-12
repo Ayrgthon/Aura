@@ -123,6 +123,11 @@ class IntegratedAuraWebSocketHandler:
                         "BRAVE_API_KEY": os.getenv("BRAVE_API_KEY", "")
                     }
                 },
+                "playwright": {
+                    "command": "npx",
+                    "args": ["-y", "@playwright/mcp"],
+                    "transport": "stdio"
+                },
                 "obsidian-memory": {
                     "command": "node",
                     "args": [os.path.join(project_root, "mcp", "obsidian_memory_server.js")],

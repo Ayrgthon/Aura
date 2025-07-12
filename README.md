@@ -146,6 +146,27 @@ Configura la ruta de tu vault de Obsidian en el archivo `.env`:
 OBSIDIAN_VAULT_PATH=/home/usuario/Documentos/Mi Vault
 ```
 
+### 🌐 Playwright MCP
+Automatización web avanzada para navegación, scraping y búsquedas en sitios web.
+
+**Funciones disponibles:**
+- `goto`: Navegar a URLs específicas
+- `click`: Hacer clic en elementos de la página
+- `fill`: Llenar formularios de búsqueda
+- `textContent`: Extraer texto de elementos
+- `screenshot`: Capturar pantallas
+- `evaluate`: Ejecutar JavaScript personalizado
+- `waitForSelector`: Esperar elementos específicos
+
+**Uso típico para Ecommerce:**
+- "Busca el precio del iPhone 15 en Amazon"
+- "Compara precios de laptops en MercadoLibre"
+- "Extrae información de productos de eBay"
+- "Navega por catálogos de tiendas online"
+
+**Configuración:**
+Playwright se instala automáticamente con los navegadores necesarios. No requiere configuración adicional.
+
 ## 🎨 Arquitectura del Proyecto
 
 ```
@@ -201,6 +222,20 @@ npm install @modelcontextprotocol/server-ejemplo
 ```
 
 3. El servidor estará disponible automáticamente en la próxima ejecución.
+
+### Configuraciones MCP Recomendadas
+
+**Para Ecommerce (Opción 8):**
+- Filesystem + Brave Search + Playwright
+- Ideal para búsquedas de precios y comparaciones
+
+**Para Desarrollo (Opción 9):**
+- Todos los MCPs (Filesystem + Brave Search + Obsidian Memory + Playwright)
+- Máxima funcionalidad disponible
+
+**Para Búsquedas Básicas (Opción 6):**
+- Obsidian Memory + Brave Search
+- Equilibrio entre funcionalidad y rendimiento
 
 ### Motores de síntesis de voz
 
