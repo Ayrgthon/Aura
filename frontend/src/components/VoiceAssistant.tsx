@@ -338,7 +338,7 @@ const VoiceAssistant = () => {
           <HolographicPanel title="AURA STATUS" delay={1.0} className="w-48">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-primary pulse-slow' : 'bg-red-500'}`} />
+                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-primary pulse-slow' : 'bg-destructive'}`} />
                 <span className="text-xs">{isConnected ? 'Online' : 'Offline'}</span>
               </div>
               <div className="text-xs text-muted-foreground">
@@ -427,7 +427,7 @@ const VoiceAssistant = () => {
               <div style={{flex: '1 1 0', minHeight: '0', overflowY: 'auto', marginTop: '8px', width: '100%', boxSizing: 'border-box'}}>
                 {lastResponse && (
                   <div className="text-xs p-2 rounded bg-glass-panel/30" style={{wordWrap: 'break-word', overflowWrap: 'break-word', width: '100%', boxSizing: 'border-box', maxWidth: '100%'}}>
-                    <div className="text-green-400 font-medium mb-1">Respuesta de Aura</div>
+                    <div className="text-neon-cyan font-medium mb-1">Respuesta de Aura</div>
                     <div className="text-muted-foreground text-xs leading-relaxed" style={{wordWrap: 'break-word', overflowWrap: 'break-word', whiteSpace: 'pre-wrap', maxWidth: '100%', boxSizing: 'border-box'}}>
                       {lastResponse}
                     </div>
@@ -449,8 +449,8 @@ const VoiceAssistant = () => {
                 disabled={isShuttingDown}
                 className={`w-14 h-14 rounded-full border border-primary/20 float transition-all duration-300 ${
                   isSystemOn 
-                    ? 'bg-green-500/30 hover:bg-green-500/50 border-green-400/40' 
-                    : 'bg-red-500/30 hover:bg-red-500/50 border-red-400/40'
+                    ? 'bg-neon-cyan/30 hover:bg-neon-cyan/50 border-neon-cyan/40' 
+                    : 'bg-destructive/30 hover:bg-destructive/50 border-destructive/40'
                 }`}
                 style={{fontSize: '24px'}}
               >

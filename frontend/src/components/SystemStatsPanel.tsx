@@ -6,10 +6,10 @@ import HolographicPanel from './HolographicPanel';
 type StatKey = 'cpu' | 'gpu' | 'ram' | 'ssd';
 
 const icons = {
-  cpu: <Cpu className="w-3.5 h-3.5 text-cyan-400" />,
-  gpu: <MonitorSmartphone className="w-3.5 h-3.5 text-fuchsia-400" />,
-  ram: <MemoryStick className="w-3.5 h-3.5 text-green-400" />,
-  ssd: <HardDrive className="w-3.5 h-3.5 text-yellow-400" />,
+  cpu: <Cpu className="w-3.5 h-3.5 text-primary" />,
+  gpu: <MonitorSmartphone className="w-3.5 h-3.5 text-accent" />,
+  ram: <MemoryStick className="w-3.5 h-3.5 text-neon-cyan" />,
+  ssd: <HardDrive className="w-3.5 h-3.5 text-neon-magenta" />,
 };
 
 const labels = {
@@ -20,10 +20,10 @@ const labels = {
 };
 
 const accent = {
-  cpu: 'text-cyan-400',
-  gpu: 'text-fuchsia-400',
-  ram: 'text-green-400',
-  ssd: 'text-yellow-400',
+  cpu: 'text-primary',
+  gpu: 'text-accent',
+  ram: 'text-neon-cyan',
+  ssd: 'text-neon-magenta',
 };
 
 interface SystemStatsPanelProps {

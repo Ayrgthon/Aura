@@ -68,7 +68,7 @@ const WeatherForecast: React.FC<WeatherForecastProps> = ({
                     {day.maxTemp}° / {day.minTemp}°
                   </div>
                   {day.precipitation > 0 && (
-                    <div className="text-xs text-blue-400">
+                    <div className="text-xs text-primary">
                       {day.precipitation}mm
                     </div>
                   )}

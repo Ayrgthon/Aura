@@ -39,7 +39,7 @@ const WeatherPanel: React.FC<WeatherPanelProps> = ({
     return (
       <HolographicPanel title="Weather" delay={delay}>
         <div className="text-sm space-y-2">
-          <div className="text-red-400 text-xs">Error</div>
+          <div className="text-destructive text-xs">Error</div>
           <div className="text-muted-foreground text-xs">{weatherData.error}</div>
           <button 
             onClick={refreshWeather}

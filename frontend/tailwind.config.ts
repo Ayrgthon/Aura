@@ -52,7 +52,7 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
-				// Futuristic color extensions
+				// Modern Tech color extensions
 				'neon-cyan': 'hsl(var(--neon-cyan))',
 				'neon-magenta': 'hsl(var(--neon-magenta))',
 				'electric-blue': 'hsl(var(--electric-blue))',

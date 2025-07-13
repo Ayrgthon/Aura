@@ -26,11 +26,11 @@ const WeatherDetails: React.FC<WeatherDetailsProps> = ({
   };
 
   const getUVColor = (uv: number): string => {
-    if (uv <= 2) return 'text-green-400';
-    if (uv <= 5) return 'text-yellow-400';
-    if (uv <= 7) return 'text-orange-400';
-    if (uv <= 10) return 'text-red-400';
-    return 'text-purple-400';
+    if (uv <= 2) return 'text-neon-cyan';
+    if (uv <= 5) return 'text-accent';
+    if (uv <= 7) return 'text-primary';
+    if (uv <= 10) return 'text-destructive';
+    return 'text-neon-magenta';
   };
 
   return (
@@ -52,7 +52,7 @@ const WeatherDetails: React.FC<WeatherDetailsProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between p-2 rounded bg-glass-panel/20">
               <div className="flex items-center gap-2">
-                <Gauge className="w-3 h-3 text-blue-400" />
+                <Gauge className="w-3 h-3 text-primary" />
                 <div>
                   <div className="text-xs font-medium">Presión</div>
                   <div className="text-xs text-muted-foreground">Atmosférica</div>
@@ -65,7 +65,7 @@ const WeatherDetails: React.FC<WeatherDetailsProps> = ({
 
             <div className="flex items-center justify-between p-2 rounded bg-glass-panel/20">
               <div className="flex items-center gap-2">
-                <Eye className="w-3 h-3 text-cyan-400" />
+                <Eye className="w-3 h-3 text-neon-cyan" />
                 <div>
                   <div className="text-xs font-medium">Visibilidad</div>
                   <div className="text-xs text-muted-foreground">Distancia</div>
@@ -78,7 +78,7 @@ const WeatherDetails: React.FC<WeatherDetailsProps> = ({
 
             <div className="flex items-center justify-between p-2 rounded bg-glass-panel/20">
               <div className="flex items-center gap-2">
-                <Sun className="w-3 h-3 text-yellow-400" />
+                <Sun className="w-3 h-3 text-accent" />
                 <div>
                   <div className="text-xs font-medium">Índice UV</div>
                   <div className="text-xs text-muted-foreground">Radiación</div>
