@@ -1,55 +1,55 @@
-# 🌟 Aura - Asistente de IA Universal con Voz
+# 🌟 Aura - Universal AI Assistant with Voice
 
-Aura es un asistente de inteligencia artificial avanzado que combina procesamiento de lenguaje natural, síntesis de voz, y capacidades extendidas a través del Model Context Protocol (MCP). Soporta múltiples modelos de IA incluyendo Google Gemini y Ollama.
+Aura is an advanced artificial intelligence assistant that combines natural language processing, voice synthesis, and extended capabilities through the Model Context Protocol (MCP). It supports multiple AI models including Google Gemini and Ollama.
 
-## 🚀 Características Principales
+## 🚀 Key Features
 
-- **🗣️ Interfaz de Voz**: Reconocimiento y síntesis de voz en español
-- **🤖 Múltiples Modelos**: Soporte para Google Gemini y Ollama
-- **🔧 Model Context Protocol (MCP)**: Integración con herramientas externas
-- **🌐 Interfaz Web**: Frontend moderno con React y Vite
-- **📊 Monitoreo del Sistema**: Visualización en tiempo real de estadísticas
-- **🔄 WebSocket**: Comunicación en tiempo real entre frontend y backend
+- **🗣️ Voice Interface**: Spanish voice recognition and synthesis
+- **🤖 Multiple Models**: Support for Google Gemini and Ollama
+- **🔧 Model Context Protocol (MCP)**: Integration with external tools
+- **🌐 Web Interface**: Modern frontend with React and Vite
+- **📊 System Monitoring**: Real-time statistics visualization
+- **🔄 WebSocket**: Real-time communication between frontend and backend
 
-## 📋 Requisitos
+## 📋 Requirements
 
 - Python 3.8+
 - Node.js 16+
-- npm o yarn
-- Arch Linux (recomendado) o cualquier distribución Linux
+- npm or yarn
+- Arch Linux (recommended) or any Linux distribution
 
-## 🛠️ Instalación
+## 🛠️ Installation
 
-### 1. Clonar el repositorio
+### 1. Clone the repository
 
 ```bash
-git clone <tu-repositorio>
+git clone <your-repository>
 cd Aura_Ollama
 ```
 
-### 2. Configurar variables de entorno
+### 2. Configure environment variables
 
 ```bash
 cp env.template .env
 ```
 
-Edita el archivo `.env` y configura tus API keys:
+Edit the `.env` file and configure your API keys:
 
 ```env
 # Google Gemini API
-GOOGLE_API_KEY=tu_api_key_de_google
+GOOGLE_API_KEY=your_google_api_key
 
 # Brave Search API  
-BRAVE_API_KEY=tu_api_key_de_brave
+BRAVE_API_KEY=your_brave_api_key
 
-# ElevenLabs API (para síntesis de voz premium)
-ELEVENLABS_API_KEY=tu_api_key_de_elevenlabs
+# ElevenLabs API (for premium voice synthesis)
+ELEVENLABS_API_KEY=your_elevenlabs_api_key
 
-# Ruta del Vault de Obsidian (opcional)
-OBSIDIAN_VAULT_PATH=/ruta/a/tu/vault
+# Obsidian Vault path (optional)
+OBSIDIAN_VAULT_PATH=/path/to/your/vault
 ```
 
-### 3. Instalar dependencias
+### 3. Install dependencies
 
 #### Backend (Python)
 ```bash
@@ -65,33 +65,33 @@ npm install
 cd ..
 ```
 
-#### Dependencias de MCP
+#### MCP Dependencies
 ```bash
 npm install
 ```
 
-### 4. Iniciar el proyecto
+### 4. Start the project
 
 ```bash
 ./start.sh
 ```
 
-El script iniciará automáticamente:
-- API de estadísticas del sistema (puerto 8000)
-- Servidor WebSocket (puerto 8765)
-- Frontend de React (puerto 5173)
+The script will automatically start:
+- System statistics API (port 8000)
+- WebSocket server (port 8765)
+- React frontend (port 5173)
 
-## 🎮 Uso
+## 🎮 Usage
 
-### Interfaz Web
+### Web Interface
 
-1. Abre tu navegador en `http://localhost:5173`
-2. Haz clic en el botón del micrófono para hablar
-3. El asistente procesará tu solicitud y responderá por voz
+1. Open your browser at `http://localhost:5173`
+2. Click the microphone button to speak
+3. The assistant will process your request and respond by voice
 
-### Interfaz de Terminal
+### Terminal Interface
 
-También puedes ejecutar Aura directamente desde la terminal:
+You can also run Aura directly from the terminal:
 
 ```bash
 cd src
@@ -100,196 +100,196 @@ python main.py
 
 ## 🔌 Model Context Protocol (MCP)
 
-Aura integra varios servidores MCP que extienden sus capacidades:
+Aura integrates several MCP servers that extend its capabilities:
 
 ### 📁 Filesystem MCP
-Permite a Aura acceder y manipular archivos en directorios específicos del sistema.
+Allows Aura to access and manipulate files in specific system directories.
 
-**Funciones disponibles:**
-- `list_directory`: Lista el contenido de un directorio
-- `read_file`: Lee el contenido de un archivo
-- `write_file`: Escribe o modifica archivos
-- `create_directory`: Crea nuevos directorios
-- `delete_file`: Elimina archivos
-- `move_file`: Mueve o renombra archivos
+**Available functions:**
+- `list_directory`: Lists the contents of a directory
+- `read_file`: Reads the contents of a file
+- `write_file`: Writes or modifies files
+- `create_directory`: Creates new directories
+- `delete_file`: Deletes files
+- `move_file`: Moves or renames files
 
-**Configuración:**
-Los directorios permitidos se configuran automáticamente basándose en los directorios existentes del sistema (Documentos, Descargas, etc.).
+**Configuration:**
+Allowed directories are automatically configured based on existing system directories (Documents, Downloads, etc.).
 
 ### 🔍 Brave Search MCP
-Permite realizar búsquedas web en tiempo real usando el motor de búsqueda Brave.
+Enables real-time web searches using the Brave search engine.
 
-**Funciones disponibles:**
-- `brave_search`: Busca información actualizada en la web
-- `brave_local_search`: Búsqueda de negocios y lugares locales
-- `brave_news_search`: Búsqueda específica de noticias
+**Available functions:**
+- `brave_search`: Searches for updated information on the web
+- `brave_local_search`: Search for local businesses and places
+- `brave_news_search`: Specific news search
 
-**Uso típico:**
-- "Busca las últimas noticias sobre IA"
-- "¿Cuál es el clima actual en Madrid?"
-- "Encuentra información sobre Python 3.12"
+**Typical usage:**
+- "Search for the latest news about AI"
+- "What's the current weather in Madrid?"
+- "Find information about Python 3.12"
 
 ### 🗃️ Obsidian Memory MCP
-Integración con Obsidian para crear un sistema de memoria persistente.
+Integration with Obsidian to create a persistent memory system.
 
-**Funciones disponibles:**
-- `search_notes`: Busca notas por contenido, etiquetas o wikilinks
-- `read_note`: Lee el contenido completo de una nota
-- `create_note`: Crea nuevas notas en el vault
-- `update_note`: Actualiza notas existentes
-- `list_vault_structure`: Lista la estructura del vault
-- `get_note_metadata`: Obtiene metadatos de las notas
+**Available functions:**
+- `search_notes`: Search notes by content, tags, or wikilinks
+- `read_note`: Reads the complete content of a note
+- `create_note`: Creates new notes in the vault
+- `update_note`: Updates existing notes
+- `list_vault_structure`: Lists the vault structure
+- `get_note_metadata`: Gets note metadata
 
-**Configuración:**
-Configura la ruta de tu vault de Obsidian en el archivo `.env`:
+**Configuration:**
+Configure your Obsidian vault path in the `.env` file:
 ```env
-OBSIDIAN_VAULT_PATH=/home/usuario/Documentos/Mi Vault
+OBSIDIAN_VAULT_PATH=/home/user/Documents/My Vault
 ```
 
 ### 🌐 Playwright MCP
-Automatización web avanzada para navegación, scraping y búsquedas en sitios web.
+Advanced web automation for navigation, scraping, and web searches.
 
-**Funciones disponibles:**
-- `goto`: Navegar a URLs específicas
-- `click`: Hacer clic en elementos de la página
-- `fill`: Llenar formularios de búsqueda
-- `textContent`: Extraer texto de elementos
-- `screenshot`: Capturar pantallas
-- `evaluate`: Ejecutar JavaScript personalizado
-- `waitForSelector`: Esperar elementos específicos
+**Available functions:**
+- `goto`: Navigate to specific URLs
+- `click`: Click on page elements
+- `fill`: Fill search forms
+- `textContent`: Extract text from elements
+- `screenshot`: Capture screenshots
+- `evaluate`: Execute custom JavaScript
+- `waitForSelector`: Wait for specific elements
 
-**Uso típico para Ecommerce:**
-- "Busca el precio del iPhone 15 en Amazon"
-- "Compara precios de laptops en MercadoLibre"
-- "Extrae información de productos de eBay"
-- "Navega por catálogos de tiendas online"
+**Typical usage for Ecommerce:**
+- "Search for iPhone 15 price on Amazon"
+- "Compare laptop prices on MercadoLibre"
+- "Extract product information from eBay"
+- "Browse online store catalogs"
 
-**Configuración:**
-Playwright se instala automáticamente con los navegadores necesarios. No requiere configuración adicional.
+**Configuration:**
+Playwright is automatically installed with the necessary browsers. No additional configuration required.
 
-## 🎨 Arquitectura del Proyecto
+## 🎨 Project Architecture
 
 ```
 Aura_Ollama/
-├── src/                    # Código fuente principal
-│   ├── main.py            # Punto de entrada principal
-│   ├── client.py          # Cliente de IA (Gemini/Ollama)
-│   ├── websocket_server.py # Servidor WebSocket
-│   └── system_stats_api.py # API de estadísticas
-├── voice/                  # Módulos de voz
-│   ├── hear.py            # Reconocimiento de voz
-│   ├── speak.py           # Síntesis de voz
-│   └── vosk-model-es-0.42/ # Modelo de voz en español
-├── mcp/                    # Servidores MCP
+├── src/                    # Main source code
+│   ├── main.py            # Main entry point
+│   ├── client.py          # AI client (Gemini/Ollama)
+│   ├── websocket_server.py # WebSocket server
+│   └── system_stats_api.py # Statistics API
+├── voice/                  # Voice modules
+│   ├── hear.py            # Voice recognition
+│   ├── speak.py           # Voice synthesis
+│   └── vosk-model-es-0.42/ # Spanish voice model
+├── mcp/                    # MCP servers
 │   └── obsidian_memory_server.js
-├── frontend/               # Aplicación React
+├── frontend/               # React application
 │   ├── src/
 │   ├── public/
 │   └── package.json
-├── logs/                   # Archivos de log
-├── .env                    # Variables de entorno
-├── requirements.txt        # Dependencias Python
-├── package.json           # Dependencias Node.js
-└── start.sh               # Script de inicio
+├── logs/                   # Log files
+├── .env                    # Environment variables
+├── requirements.txt        # Python dependencies
+├── package.json           # Node.js dependencies
+└── start.sh               # Startup script
 ```
 
-## 🔧 Configuración Avanzada
+## 🔧 Advanced Configuration
 
-### Cambiar el modelo de IA
+### Changing the AI model
 
-Por defecto, Aura usa Google Gemini. Para cambiar a Ollama:
+By default, Aura uses Google Gemini. To change to Ollama:
 
-1. Instala Ollama: https://ollama.ai
-2. Descarga un modelo: `ollama pull qwen2.5-coder:7b`
-3. Al iniciar Aura, selecciona la opción de Ollama
+1. Install Ollama: https://ollama.ai
+2. Download a model: `ollama pull qwen2.5-coder:7b`
+3. When starting Aura, select the Ollama option
 
-### Agregar nuevos MCPs
+### Adding new MCPs
 
-Para agregar un nuevo servidor MCP:
+To add a new MCP server:
 
-1. Instala el servidor MCP:
+1. Install the MCP server:
 ```bash
-npm install @modelcontextprotocol/server-ejemplo
+npm install @modelcontextprotocol/server-example
 ```
 
-2. Modifica `src/main.py` o `src/websocket_server.py` para agregar la configuración:
+2. Modify `src/main.py` or `src/websocket_server.py` to add the configuration:
 ```python
-"ejemplo": {
+"example": {
     "command": "npx",
-    "args": ["-y", "@modelcontextprotocol/server-ejemplo"],
+    "args": ["-y", "@modelcontextprotocol/server-example"],
     "transport": "stdio"
 }
 ```
 
-3. El servidor estará disponible automáticamente en la próxima ejecución.
+3. The server will be automatically available on the next run.
 
-### Configuraciones MCP Recomendadas
+### Recommended MCP Configurations
 
-**Para Ecommerce (Opción 8):**
+**For Ecommerce (Option 8):**
 - Filesystem + Brave Search + Playwright
-- Ideal para búsquedas de precios y comparaciones
+- Ideal for price searches and comparisons
 
-**Para Desarrollo (Opción 9):**
-- Todos los MCPs (Filesystem + Brave Search + Obsidian Memory + Playwright)
-- Máxima funcionalidad disponible
+**For Development (Option 9):**
+- All MCPs (Filesystem + Brave Search + Obsidian Memory + Playwright)
+- Maximum functionality available
 
-**Para Búsquedas Básicas (Opción 6):**
+**For Basic Searches (Option 6):**
 - Obsidian Memory + Brave Search
-- Equilibrio entre funcionalidad y rendimiento
+- Balance between functionality and performance
 
-### Motores de síntesis de voz
+### Voice synthesis engines
 
-Aura soporta múltiples motores TTS:
+Aura supports multiple TTS engines:
 
-- **gTTS** (por defecto): Gratuito, requiere conexión a internet
-- **ElevenLabs**: Alta calidad, requiere API key
-- **edge-tts**: Gratuito, usa voces de Microsoft Edge
+- **gTTS** (default): Free, requires internet connection
+- **ElevenLabs**: High quality, requires API key
+- **edge-tts**: Free, uses Microsoft Edge voices
 
-Para cambiar el motor, usa el comando en la interfaz web o modifica `voice/speak.py`.
+To change the engine, use the command in the web interface or modify `voice/speak.py`.
 
-## 🐛 Solución de Problemas
+## 🐛 Troubleshooting
 
-### El reconocimiento de voz no funciona
-- Verifica que tengas un micrófono conectado
-- Asegúrate de que el modelo Vosk esté en `voice/vosk-model-es-0.42/`
-- Revisa los permisos del micrófono en tu sistema
+### Voice recognition not working
+- Verify you have a microphone connected
+- Make sure the Vosk model is in `voice/vosk-model-es-0.42/`
+- Check microphone permissions on your system
 
-### Error de conexión WebSocket
-- Verifica que el puerto 8765 no esté en uso
-- Revisa los logs en `logs/websocket.log`
+### WebSocket connection error
+- Verify that port 8765 is not in use
+- Check logs in `logs/websocket.log`
 
-### El frontend no carga
-- Asegúrate de haber instalado las dependencias con `npm install`
-- Verifica que el puerto 5173 esté libre
-- Revisa los logs en `logs/frontend.log`
+### Frontend not loading
+- Make sure you've installed dependencies with `npm install`
+- Verify that port 5173 is free
+- Check logs in `logs/frontend.log`
 
 ## 📝 Logs
 
-Los logs se guardan en la carpeta `logs/`:
-- `backend_stats.log`: API de estadísticas
-- `websocket.log`: Servidor WebSocket
-- `frontend.log`: Aplicación React
+Logs are saved in the `logs/` folder:
+- `backend_stats.log`: Statistics API
+- `websocket.log`: WebSocket server
+- `frontend.log`: React application
 
-## 🤝 Contribuciones
+## 🤝 Contributions
 
-Las contribuciones son bienvenidas. Por favor:
-1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
+Contributions are welcome. Please:
+1. Fork the project
+2. Create a branch for your feature (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-## 📄 Licencia
+## 📄 License
 
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+This project is under the MIT License. See the `LICENSE` file for more details.
 
-## 🙏 Agradecimientos
+## 🙏 Acknowledgments
 
-- Google Gemini y Ollama por los modelos de IA
-- Vosk por el reconocimiento de voz offline
-- Model Context Protocol por la arquitectura extensible
-- La comunidad de código abierto
+- Google Gemini and Ollama for AI models
+- Vosk for offline voice recognition
+- Model Context Protocol for the extensible architecture
+- The open source community
 
 ---
 
-**Desarrollado con ❤️ por Ary** 
+**Developed with ❤️ by Ary** 
