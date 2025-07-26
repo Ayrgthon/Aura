@@ -19,7 +19,7 @@ const HolographicPanel: React.FC<HolographicPanelProps> = ({
       className={`glass-panel p-4 float ${className}`}
       style={{ 
         animationDelay: `${delay}s`,
-        minWidth: '180px'
+        minWidth: '160px'
       }}
     >
       {/* Panel header with holographic effect */}

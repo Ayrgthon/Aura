@@ -90,13 +90,10 @@ class IntegratedAuraWebSocketHandler:
             possible_dirs = [
                 (home_dir, "home"),
                 (f"{home_dir}/Documents", "Documents"),
-                (f"{home_dir}/Documentos", "Documentos"),
-                (f"{home_dir}/Desktop", "Desktop"),
-                (f"{home_dir}/Escritorio", "Escritorio"),
-                (f"{home_dir}/Descargas", "Descargas"),
                 (f"{home_dir}/Downloads", "Downloads"),
+                (f"{home_dir}/Pictures", "Pictures"),
                 ("/tmp", "tmp"),
-                ("/home/ary/Documentos/Ary Vault", "Obsidian Vault"),
+                ("/home/ary/Documents/Ary Vault", "Obsidian Vault"),
             ]
 
             allowed_dirs = [path for path, _ in possible_dirs if os.path.exists(path)]

@@ -463,8 +463,9 @@ class AuraClient:
             "- Siempre que el usuario pida listar, abrir, leer o similar sobre una carpeta o archivo, deduce la ruta completa usando los alias.\n"
             "- Llama a la herramienta adecuada sin solicitar más pistas al usuario.\n"
             "Ejemplos:\n"
-            "  • Usuario: 'lista la carpeta documentos' → Usa list_directory con args={'path': '/home/ary/Documentos'}.\n"
-            "  • Usuario: 'abre documents' → Usa list_directory con args={'path': '/home/ary/Documents'}.\n"
+            "  • Usuario: 'lista la carpeta documents' → Usa list_directory con args={'path': '/home/ary/Documents'}.\n"
+            "  • Usuario: 'abre downloads' → Usa list_directory con args={'path': '/home/ary/Downloads'}.\n"
+            "  • Usuario: 'muestra pictures' → Usa list_directory con args={'path': '/home/ary/Pictures'}.\n"
         )
 
         extra_context = (

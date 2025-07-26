@@ -14,7 +14,7 @@ const { pipeline } = require('stream/promises');
 const MCP_CONFIG = {
     name: "obsidian-memory",
     version: "1.0.0",
-    vault_path: process.env.OBSIDIAN_VAULT_PATH || "/home/ary/Documentos/Ary Vault"
+    vault_path: process.env.OBSIDIAN_VAULT_PATH || "/home/ary/Documents/Ary Vault"
 };
 
 class ObsidianMemoryServer {

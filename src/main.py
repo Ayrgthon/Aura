@@ -240,13 +240,10 @@ class AuraAssistant:
         possible_dirs = [
             (home_dir, "home"),
             (f"{home_dir}/Documents", "Documents"),
-            (f"{home_dir}/Documentos", "Documentos"),
-            (f"{home_dir}/Desktop", "Desktop"),
-            (f"{home_dir}/Escritorio", "Escritorio"),
-            (f"{home_dir}/Descargas", "Descargas"),
             (f"{home_dir}/Downloads", "Downloads"),
+            (f"{home_dir}/Pictures", "Pictures"),
             ("/tmp", "temporal"),
-            ("/home/ary/Documentos/Ary Vault", "Obsidian Vault")
+            ("/home/ary/Documents/Ary Vault", "Obsidian Vault")
         ]
         
         # Filtrar solo directorios que existen
@@ -300,7 +297,7 @@ class AuraAssistant:
         print("🗃️ Configurando Obsidian Memory...")
         
         # Verificar que el vault existe
-        vault_path = "/home/ary/Documentos/Ary Vault"
+        vault_path = "/home/ary/Documents/Ary Vault"
         if not os.path.exists(vault_path):
             print(f"❌ El vault de Obsidian no existe en: {vault_path}")
             print("💡 Verifica la ruta del vault en el archivo obsidian_memory_server.js")

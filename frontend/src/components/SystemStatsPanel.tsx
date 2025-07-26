@@ -1,15 +1,15 @@
 import React from 'react';
-import { Cpu, MemoryStick, HardDrive, MonitorSmartphone } from 'lucide-react';
+import { Cpu, MemoryStick, HardDrive, Monitor } from 'lucide-react';
 import { useSystemStats } from '@/hooks/useSystemStats';
 import HolographicPanel from './HolographicPanel';
 
 type StatKey = 'cpu' | 'gpu' | 'ram' | 'ssd';
 
 const icons = {
-  cpu: <Cpu className="w-3.5 h-3.5 text-primary" />,
-  gpu: <MonitorSmartphone className="w-3.5 h-3.5 text-accent" />,
-  ram: <MemoryStick className="w-3.5 h-3.5 text-neon-cyan" />,
-  ssd: <HardDrive className="w-3.5 h-3.5 text-neon-magenta" />,
+  cpu: <Cpu className="w-3.5 h-3.5" style={{color: 'rgb(34, 211, 238)', filter: 'drop-shadow(0 0 8px rgba(34, 211, 238, 0.6))'}} />,
+  gpu: <Monitor className="w-3.5 h-3.5" style={{color: 'rgb(34, 211, 238)', filter: 'drop-shadow(0 0 8px rgba(34, 211, 238, 0.6))'}} />,
+  ram: <MemoryStick className="w-3.5 h-3.5" style={{color: 'rgb(34, 211, 238)', filter: 'drop-shadow(0 0 8px rgba(34, 211, 238, 0.6))'}} />,
+  ssd: <HardDrive className="w-3.5 h-3.5" style={{color: 'rgb(34, 211, 238)', filter: 'drop-shadow(0 0 8px rgba(34, 211, 238, 0.6))'}} />,
 };
 
 const labels = {
@@ -20,10 +20,10 @@ const labels = {
 };
 
 const accent = {
-  cpu: 'text-primary',
-  gpu: 'text-accent',
-  ram: 'text-neon-cyan',
-  ssd: 'text-neon-magenta',
+  cpu: 'text-white/90',
+  gpu: 'text-white/90',
+  ram: 'text-white/90',
+  ssd: 'text-white/90',
 };
 
 interface SystemStatsPanelProps {
@@ -34,7 +34,7 @@ const SystemStatsPanel: React.FC<SystemStatsPanelProps> = ({ statKey }) => {
   const { stats } = useSystemStats();
 
   const renderValue = (val: number | null, key: keyof typeof icons) => (
-    <span className={`text-sm font-bold ${accent[key]} transition-all duration-500`}>{
+    <span className={`text-sm font-bold ${accent[key]} transition-all duration-500 text-white/90`}>{
       val !== null ? `${val.toFixed(0)}%` : '--%'
     }</span>
   );
