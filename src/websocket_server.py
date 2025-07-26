@@ -129,6 +129,17 @@ class IntegratedAuraWebSocketHandler:
                     "command": "node",
                     "args": [os.path.join(project_root, "mcp", "obsidian_memory_server.js")],
                     "transport": "stdio"
+                },
+                "notion": {
+                    "command": "npx",
+                    "args": ["-y", "@notionhq/notion-mcp-server"],
+                    "transport": "stdio",
+                    "env": {
+                        "OPENAPI_MCP_HEADERS": json.dumps({
+                            "Authorization": f"Bearer {os.getenv('NOTION_API_KEY', '')}",
+                            "Notion-Version": "2022-06-28"
+                        })
+                    }
                 }
             }
             

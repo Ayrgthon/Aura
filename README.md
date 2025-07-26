@@ -146,6 +146,43 @@ Configure your Obsidian vault path in the `.env` file:
 OBSIDIAN_VAULT_PATH=/home/user/Documents/My Vault
 ```
 
+### 📝 Notion MCP
+Integration with Notion API for managing pages, databases, and content.
+
+**Available functions:**
+- `search_pages`: Search for pages in your Notion workspace
+- `get_page`: Retrieve page content and properties
+- `create_page`: Create new pages in databases or as children of existing pages
+- `update_page`: Update page properties and content
+- `get_database`: Retrieve database structure and entries
+- `query_database`: Query database entries with filters
+- `create_database`: Create new databases
+- `get_block_children`: Get child blocks of a page
+- `append_block_children`: Add new blocks to a page
+- `update_block`: Update block content
+- `delete_block`: Delete blocks from pages
+
+**Typical usage:**
+- "Create a new page in my project database"
+- "Search for pages about AI research"
+- "Update the status of my task in the project tracker"
+- "Add a new entry to my reading list database"
+- "Get all pages tagged with 'important'"
+
+**Configuration:**
+Configure your Notion API key in the `.env` file:
+```env
+NOTION_API_KEY=your_notion_integration_token
+```
+
+To get your Notion API key:
+1. Go to https://www.notion.so/my-integrations
+2. Create a new integration
+3. Copy the "Internal Integration Token"
+4. Add it to your `.env` file
+
+**Important:** You need to share your Notion pages/databases with your integration for Aura to access them.
+
 ### 🌐 Playwright MCP
 Advanced web automation for navigation, scraping, and web searches.
 
@@ -225,17 +262,25 @@ npm install @modelcontextprotocol/server-example
 
 ### Recommended MCP Configurations
 
-**For Ecommerce (Option 8):**
+**For Ecommerce (Option 9):**
 - Filesystem + Brave Search + Playwright
 - Ideal for price searches and comparisons
 
-**For Development (Option 9):**
-- All MCPs (Filesystem + Brave Search + Obsidian Memory + Playwright)
+**For Productivity (Option 10):**
+- Notion + Brave Search
+- Perfect for managing notes, tasks, and research
+
+**For Development (Option 11):**
+- All MCPs (Filesystem + Brave Search + Obsidian Memory + Playwright + Notion)
 - Maximum functionality available
 
-**For Basic Searches (Option 6):**
+**For Basic Searches (Option 7):**
 - Obsidian Memory + Brave Search
 - Balance between functionality and performance
+
+**For Note Management (Option 5):**
+- Notion only
+- Focus on Notion workspace management
 
 ### Voice synthesis engines
 

@@ -10,6 +10,7 @@ import warnings
 import subprocess
 import threading
 import time
+import json
 from dotenv import load_dotenv
 
 # Cargar variables de entorno
@@ -140,11 +141,13 @@ class AuraAssistant:
         print("2. 🔍 Solo Brave Search (búsquedas web)")
         print("3. 🗃️ Solo Obsidian Memory (memoria centralizada)")
         print("4. 🌐 Solo Playwright (automatización web)")
-        print("5. 🌐 Filesystem + Brave Search")
-        print("6. 🧠 Obsidian Memory + Brave Search (recomendado)")
-        print("7. 🔧 Filesystem + Obsidian Memory + Brave Search")
-        print("8. 🚀 Filesystem + Brave Search + Playwright (ecommerce)")
-        print("9. ⭐ Todos los MCPs (completo)")
+        print("5. 📝 Solo Notion (gestión de notas)")
+        print("6. 🌐 Filesystem + Brave Search")
+        print("7. 🧠 Obsidian Memory + Brave Search (recomendado)")
+        print("8. 🔧 Filesystem + Obsidian Memory + Brave Search")
+        print("9. 🚀 Filesystem + Brave Search + Playwright (ecommerce)")
+        print("10. 📝 Notion + Brave Search (productividad)")
+        print("11. ⭐ Todos los MCPs (completo)")
         print("0. ❌ Sin MCP")
         
         while True:
@@ -168,45 +171,56 @@ class AuraAssistant:
                     mcp_config = self._get_playwright_config()
                     break
                 elif choice == "5":
+                    # Solo Notion
+                    mcp_config = self._get_notion_config()
+                    break
+                elif choice == "6":
                     # Filesystem + Brave Search
                     filesystem_config = self._get_filesystem_config()
                     brave_config = self._get_brave_search_config()
                     mcp_config = {**filesystem_config, **brave_config}
                     break
-                elif choice == "6":
+                elif choice == "7":
                     # Obsidian Memory + Brave Search
                     obsidian_config = self._get_obsidian_memory_config()
                     brave_config = self._get_brave_search_config()
                     mcp_config = {**obsidian_config, **brave_config}
                     break
-                elif choice == "7":
+                elif choice == "8":
                     # Filesystem + Obsidian Memory + Brave Search
                     filesystem_config = self._get_filesystem_config()
                     brave_config = self._get_brave_search_config()
                     obsidian_config = self._get_obsidian_memory_config()
                     mcp_config = {**filesystem_config, **brave_config, **obsidian_config}
                     break
-                elif choice == "8":
+                elif choice == "9":
                     # Filesystem + Brave Search + Playwright (ecommerce)
                     filesystem_config = self._get_filesystem_config()
                     brave_config = self._get_brave_search_config()
                     playwright_config = self._get_playwright_config()
                     mcp_config = {**filesystem_config, **brave_config, **playwright_config}
                     break
-                elif choice == "9":
+                elif choice == "10":
+                    # Notion + Brave Search
+                    notion_config = self._get_notion_config()
+                    brave_config = self._get_brave_search_config()
+                    mcp_config = {**notion_config, **brave_config}
+                    break
+                elif choice == "11":
                     # Todos los MCPs
                     filesystem_config = self._get_filesystem_config()
                     brave_config = self._get_brave_search_config()
                     obsidian_config = self._get_obsidian_memory_config()
                     playwright_config = self._get_playwright_config()
-                    mcp_config = {**filesystem_config, **brave_config, **obsidian_config, **playwright_config}
+                    notion_config = self._get_notion_config()
+                    mcp_config = {**filesystem_config, **brave_config, **obsidian_config, **playwright_config, **notion_config}
                     break
                 elif choice == "0":
                     # Sin MCP
                     print("✅ Continuando sin MCP")
                     return False
                 else:
-                    print("❌ Opción no válida. Selecciona 1, 2, 3, 4, 5, 6, 7, 8, 9 o 0.")
+                    print("❌ Opción no válida. Selecciona 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 o 0.")
                     continue
                     
             except KeyboardInterrupt:
@@ -345,6 +359,32 @@ class AuraAssistant:
                 "command": "npx",
                 "args": ["-y", "@playwright/mcp"],
                 "transport": "stdio"
+            }
+        }
+    
+    def _get_notion_config(self):
+        """Obtiene la configuración del MCP Notion"""
+        print("📝 Configurando Notion...")
+        
+        notion_api_key = os.getenv("NOTION_API_KEY")
+        if not notion_api_key:
+            print("⚠️  NOTION_API_KEY no encontrada en .env")
+            print("💡 Obtén tu API key en: https://www.notion.so/my-integrations")
+            return {}
+        
+        print("✅ Usando API key de Notion")
+        
+        return {
+            "notion": {
+                "command": "npx",
+                "args": ["-y", "@notionhq/notion-mcp-server"],
+                "transport": "stdio",
+                "env": {
+                    "OPENAPI_MCP_HEADERS": json.dumps({
+                        "Authorization": f"Bearer {notion_api_key}",
+                        "Notion-Version": "2022-06-28"
+                    })
+                }
             }
         }
     
