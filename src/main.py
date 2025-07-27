@@ -449,6 +449,8 @@ class AuraAssistant:
         print("  • 'salir' o 'exit' - Terminar")
         print("  • 'escuchar' - Entrada por voz (si está disponible)")
         print("  • 'limpiar' - Limpiar historial")
+        print("  • 'langgraph on/off' - Habilitar/deshabilitar LangGraph")
+        print("  • 'status' - Ver estado del agente")
         
         # Si la interfaz de voz está activa, mostrar información adicional
         if self.websocket_process:
@@ -482,6 +484,29 @@ class AuraAssistant:
                     else:
                         print("🔇 No se detectó entrada de voz")
                         continue
+                
+                # Comandos de LangGraph
+                if user_input.lower().startswith('langgraph'):
+                    if self.client:
+                        if 'on' in user_input.lower():
+                            self.client.enable_langgraph(True)
+                        elif 'off' in user_input.lower():
+                            self.client.enable_langgraph(False)
+                        else:
+                            status = self.client.get_agent_status()
+                            print(f"🔧 LangGraph: {'Habilitado' if status['langgraph_enabled'] else 'Deshabilitado'}")
+                    continue
+                
+                if user_input.lower() == 'status':
+                    if self.client:
+                        status = self.client.get_agent_status()
+                        print(f"\n🤖 Estado del Agente:")
+                        print(f"  📊 LangGraph disponible: {status['langgraph_available']}")
+                        print(f"  🔧 LangGraph habilitado: {status['langgraph_enabled']}")
+                        print(f"  ⚡ Agente LangGraph activo: {status['langgraph_agent']}")
+                        print(f"  🛠️ Herramientas MCP: {status['mcp_tools']}")
+                        print(f"  💬 Historial: {status['conversation_history_length']} mensajes")
+                    continue
                 
                 if not user_input:
                     continue
@@ -539,9 +564,13 @@ class AuraAssistant:
                         speak_async(f"Error en {tool_name}")
                         result = f"Error: {e}"
 
-                    # Añadir al historial
+                    # Añadir al historial local Y global
+                    observation_message = HumanMessage(content=f"Observación: {result}")
                     messages.append(AIMessage(content="", additional_kwargs={'tool_calls':[tool_call]}))
-                    messages.append(HumanMessage(content=f"Observación: {result}"))
+                    messages.append(observation_message)
+                    # Añadir al historial global para persistencia
+                    self.client.conversation_history.append(AIMessage(content="", additional_kwargs={'tool_calls':[tool_call]}))
+                    self.client.conversation_history.append(observation_message)
                 step += 1
                 # Continuar loop para permitir nuevos planes
                 continue
@@ -582,6 +611,20 @@ class AuraAssistant:
             
             # 4. Configurar MCP
             await self.setup_mcp()
+            
+            # Debug: Verificar historial después de configuración
+            if self.client:
+                print("\n🔍 Verificando configuración del historial...")
+                self.client.debug_conversation_history()
+                
+                # Mostrar estado del agente
+                status = self.client.get_agent_status()
+                print(f"\n🤖 Estado del Agente:")
+                print(f"  📊 LangGraph disponible: {status['langgraph_available']}")
+                print(f"  🔧 LangGraph habilitado: {status['langgraph_enabled']}")
+                print(f"  ⚡ Agente LangGraph activo: {status['langgraph_agent']}")
+                print(f"  🛠️ Herramientas MCP: {status['mcp_tools']}")
+                print(f"  💬 Historial: {status['conversation_history_length']} mensajes")
             
             # 5. Ejecutar modo interactivo
             await self.run_interactive_mode()

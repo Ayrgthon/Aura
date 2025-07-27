@@ -10,6 +10,7 @@ Aura is an advanced artificial intelligence assistant that combines natural lang
 - **🌐 Web Interface**: Modern frontend with React and Vite
 - **📊 System Monitoring**: Real-time statistics visualization
 - **🔄 WebSocket**: Real-time communication between frontend and backend
+- **⚡ LangGraph Integration**: Robust flow management for complex tasks
 
 ## 📋 Requirements
 

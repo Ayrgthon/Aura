@@ -6,6 +6,7 @@ import threading
 import tempfile
 import warnings
 import logging
+import json
 from io import StringIO
 from contextlib import redirect_stderr, redirect_stdout
 from gtts import gTTS
@@ -56,6 +57,18 @@ try:
 except ImportError as e:
     print(f"⚠️  Error cargando MCP: {e}")
     MultiServerMCPClient = None
+
+# Importaciones para LangGraph
+try:
+    from .langgraph_agent import create_langgraph_agent, LangGraphAgent
+    LANGGRAPH_AGENT_AVAILABLE = True
+except ImportError as e:
+    try:
+        from langgraph_agent import create_langgraph_agent, LangGraphAgent
+        LANGGRAPH_AGENT_AVAILABLE = True
+    except ImportError as e2:
+        print(f"⚠️  Error cargando LangGraph Agent: {e2}")
+        LANGGRAPH_AGENT_AVAILABLE = False
 
 # Importar modelos LLM
 try:
@@ -193,7 +206,24 @@ class AuraClient:
             "Responde de forma clara, conversacional y sin utilizar markdown ni caracteres especiales como *, #, **, guiones bajos, etc. "
             "Si necesitas enumerar, utiliza guiones simples '-' al inicio de cada punto. "
             "Mantén las oraciones cortas para que se lean naturalmente en voz alta. "
-            "Evita emojis y símbolos innecesarios."
+            "Evita emojis y símbolos innecesarios. "
+            "SIEMPRE RESPONDE al usuario, nunca te quedes en silencio. "
+            
+            "PROTOCOLO ESPECIAL PARA BASE DE DATOS 'QUEST': "
+            "La base de datos 'quest' es tu herramienta principal para gestionar tareas y proyectos. "
+            "Propiedades disponibles: Name (título), Due date (fecha), Description (descripción), skill (habilidad), arcos (arco narrativo), importancia, Status, completed!. "
+            "PROTOCOLO ESTRICTO PARA CREAR PÁGINAS EN NOTION: "
+            "Cuando te pidan crear una página, sigue EXACTAMENTE estos 4 pasos en orden: "
+            "PASO 1: Buscar la base de datos usando API-post-search con query='nombre_base_datos' y filter={'property': 'object', 'value': 'database'} "
+            "PASO 2: Obtener el database_id del resultado y usar API-post-database-query con database_id para revisar propiedades "
+            "PASO 3: Crear la página usando API-post-page con parent={'database_id': 'ID'} y properties correctas "
+            "PASO 4: Confirmar creación exitosa "
+            "ESTRUCTURA DE PROPERTIES: Name={'title': [{'text': {'content': 'título'}}]}, Due date={'date': {'start': 'YYYY-MM-DD'}}, Description={'rich_text': [{'text': {'content': 'texto'}}]} "
+            "IMPORTANTE: SIEMPRE usar database_id en parent, NUNCA page_id. "
+            "NUNCA hagas pasos extra. NUNCA busques otras bases de datos. NUNCA uses comillas extra en nombres. "
+            "SOLO los 4 pasos en orden. NADA más. "
+            "Comandos: 'crea una página llamada [título]', 'crea en [base_datos] una página llamada [título]'. "
+            "Confirma la creación exitosa al final."
         )
 
         self.conversation_history: List[BaseMessage] = [
@@ -211,6 +241,10 @@ class AuraClient:
         # Cliente MCP
         self.mcp_client = None
         self.mcp_tools = []
+        
+        # Agente LangGraph
+        self.langgraph_agent = None
+        self.use_langgraph = True  # Por defecto usar LangGraph si está disponible
         
         print(f"✅ Cliente Aura inicializado con {self.model_type.upper()}")
     
@@ -291,6 +325,18 @@ class AuraClient:
             for tool in self.mcp_tools:
                 print(f"  - {tool.name}: {tool.description}")
             
+            # Inicializar agente LangGraph si está disponible
+            if self.use_langgraph and LANGGRAPH_AGENT_AVAILABLE:
+                self.langgraph_agent = create_langgraph_agent(
+                    self.model, 
+                    self.mcp_tools, 
+                    max_steps=15
+                )
+                if self.langgraph_agent:
+                    print("✅ Agente LangGraph inicializado para flujos complejos")
+                else:
+                    print("⚠️ No se pudo inicializar LangGraph, usando agente simple")
+            
             return True
             
         except Exception as e:
@@ -315,6 +361,11 @@ class AuraClient:
         
         tool_name = tool_call['name']
         tool_args = tool_call.get('args', {})
+        
+        # DEBUG: Imprimir información de la llamada a la API
+        print(f"\n🔍 DEBUG API CALL:")
+        print(f"   Herramienta: {tool_name}")
+        print(f"   Argumentos: {json.dumps(tool_args, indent=2, ensure_ascii=False)}")
         
         # Buscar la herramienta en nuestras herramientas MCP
         target_tool = None
@@ -342,6 +393,10 @@ class AuraClient:
             except Exception as e2:
                 raise Exception(f"Error ejecutando herramienta: {e2} | Error original async: {original_error}")
         
+        # DEBUG: Imprimir resultado
+        print(f"   Resultado: {str(result)[:200]}...")
+        print(f"   {'='*50}")
+        
         return str(result)
 
     async def chat_with_voice(self, user_input: str) -> str:
@@ -359,16 +414,46 @@ class AuraClient:
             # Agregar mensaje del usuario al historial
             self.conversation_history.append(HumanMessage(content=user_input))
             
-            # Usar un enfoque de dos fases si hay herramientas MCP
-            if self.mcp_tools:
+            # Debug: Verificar qué agente se está usando
+            print(f"🔍 DEBUG: langgraph_agent = {self.langgraph_agent is not None}")
+            print(f"🔍 DEBUG: mcp_tools = {len(self.mcp_tools) if self.mcp_tools else 0}")
+            
+            # Usar LangGraph si está disponible, sino usar el agente simple
+            if self.langgraph_agent:
+                print("🔍 DEBUG: Usando LangGraph Agent")
+                return await self._langgraph_agent(user_input)
+            elif self.mcp_tools:
+                print("🔍 DEBUG: Usando Multi-Step Agent (ReAct)")
                 return await self._multi_step_agent(user_input)
             else:
+                print("🔍 DEBUG: Usando Chat sin MCP")
                 return await self._chat_without_mcp(user_input)
             
         except Exception as e:
             error_msg = f"❌ Error en chat: {e}"
             print(error_msg)
             return error_msg
+    
+    async def _langgraph_agent(self, user_input: str) -> str:
+        """Agente LangGraph para manejo de flujos complejos."""
+        if not self.langgraph_agent:
+            return await self._multi_step_agent(user_input)
+        
+        try:
+            # Usar el agente LangGraph
+            final_answer = await self.langgraph_agent.run(
+                user_input, 
+                self.conversation_history
+            )
+            
+            # Añadir al historial y reproducir
+            await self._stream_response(final_answer)
+            return final_answer
+            
+        except Exception as e:
+            print(f"❌ Error en agente LangGraph: {e}")
+            # Fallback al agente simple
+            return await self._multi_step_agent(user_input)
     
     async def _multi_step_agent(self, user_input: str) -> str:
         """Agente estilo ReAct con varios pasos, usando callbacks de voz."""
@@ -397,9 +482,13 @@ class AuraClient:
                         speak_cb(f"Error en {tool_name}")
                         result = f"Error: {e}"
 
-                    # Registrar Observación
+                    # Registrar Observación en historial global Y local
+                    observation_message = HumanMessage(content=f"Observación: {result}")
                     messages.append(AIMessage(content="", additional_kwargs={'tool_calls':[tool_call]}))
-                    messages.append(HumanMessage(content=f"Observación: {result}"))
+                    messages.append(observation_message)
+                    # Añadir al historial global para persistencia
+                    self.conversation_history.append(AIMessage(content="", additional_kwargs={'tool_calls':[tool_call]}))
+                    self.conversation_history.append(observation_message)
                 step += 1
                 continue  # Permitir nuevo ciclo
             else:
@@ -444,6 +533,54 @@ class AuraClient:
 
         Esto ayuda al modelo a mapear nombres hablados como "Documentos" al path real.
         """
+        
+    def debug_conversation_history(self):
+        """Función de debug para verificar el contenido del historial"""
+        print(f"\n🔍 DEBUG: Historial tiene {len(self.conversation_history)} mensajes")
+        for i, msg in enumerate(self.conversation_history):
+            content_preview = str(msg.content)[:100] + "..." if len(str(msg.content)) > 100 else str(msg.content)
+            print(f"  {i}: {type(msg).__name__} - {content_preview}")
+        
+        # Verificar si el protocolo está presente
+        protocol_found = any(
+            "PROTOCOLO DIRECTO PARA NOTION QUEST Y ARCOS" in str(msg.content) 
+            for msg in self.conversation_history
+        )
+        print(f"  📋 Protocolo Notion encontrado: {protocol_found}")
+        
+        # Verificar si hay observaciones de herramientas
+        tool_observations = sum(
+            1 for msg in self.conversation_history 
+            if "Observación:" in str(msg.content)
+        )
+        print(f"  🔧 Observaciones de herramientas: {tool_observations}")
+    
+    def enable_langgraph(self, enable: bool = True):
+        """Habilita o deshabilita el uso de LangGraph"""
+        self.use_langgraph = enable
+        if enable and not self.langgraph_agent and LANGGRAPH_AGENT_AVAILABLE:
+            self.langgraph_agent = create_langgraph_agent(
+                self.model, 
+                self.mcp_tools, 
+                max_steps=15
+            )
+            if self.langgraph_agent:
+                print("✅ LangGraph habilitado")
+            else:
+                print("⚠️ No se pudo habilitar LangGraph")
+        elif not enable:
+            self.langgraph_agent = None
+            print("🔇 LangGraph deshabilitado")
+    
+    def get_agent_status(self) -> Dict[str, Any]:
+        """Obtiene el estado actual del agente"""
+        return {
+            "langgraph_available": LANGGRAPH_AGENT_AVAILABLE,
+            "langgraph_enabled": self.use_langgraph,
+            "langgraph_agent": self.langgraph_agent is not None,
+            "mcp_tools": len(self.mcp_tools),
+            "conversation_history_length": len(self.conversation_history)
+        }
         if not allowed_dirs:
             return
         # Construir el texto explicativo
@@ -457,9 +594,9 @@ class AuraClient:
 
         alias_block = "\n".join(alias_lines)
 
-        # Instrucciones y ejemplos claros
-        instructions_block = (
-            "Instrucciones para el uso de herramientas:\n"
+        # Instrucciones para herramientas de archivos
+        filesystem_instructions = (
+            "Instrucciones para el uso de herramientas de archivos:\n"
             "- Siempre que el usuario pida listar, abrir, leer o similar sobre una carpeta o archivo, deduce la ruta completa usando los alias.\n"
             "- Llama a la herramienta adecuada sin solicitar más pistas al usuario.\n"
             "Ejemplos:\n"
@@ -468,17 +605,59 @@ class AuraClient:
             "  • Usuario: 'muestra pictures' → Usa list_directory con args={'path': '/home/ary/Pictures'}.\n"
         )
 
+        # Protocolo específico para Notion Quest y Arcos (basado en tu forma de hablar)
+        notion_quest_protocol = (
+            "PROTOCOLO DIRECTO PARA NOTION QUEST Y ARCOS:\n"
+            "Tienes acceso a dos bases de datos principales:\n"
+            "• 'quest': Tareas pendientes (propiedades: Name, Due date, Description, skill, arcos, importancia, Status, completed!, personaje, Pistas)\n"
+            "• 'arcos': Eventos/proyectos (propiedades: quest, clear!, personaje, skills, Pistas, Name)\n"
+            "PROCESO ESTRICTO DE CREACIÓN:\n"
+            "PASO 1: Buscar la base de datos usando API-post-search con query='nombre_base_datos' y filter={'property': 'object', 'value': 'database'}\n"
+            "PASO 2: Obtener el database_id y usar API-post-database-query con database_id para revisar propiedades\n"
+            "PASO 3: Crear la página usando API-post-page con parent={'database_id': 'ID'} y properties correctas\n"
+            "PASO 4: Confirmar creación exitosa\n"
+            "ESTRUCTURA DE PROPERTIES:\n"
+            "• Name: {'title': [{'text': {'content': 'título'}}]}\n"
+            "• Due date: {'date': {'start': 'YYYY-MM-DD'}}\n"
+            "• Description: {'rich_text': [{'text': {'content': 'texto'}}]}\n"
+            "• arcos: {'relation': [{'id': 'ID_del_arco'}]}\n"
+            "• skill: {'select': {'name': 'nombre_skill'}}\n"
+            "• importancia: {'select': {'name': 'nivel_importancia'}}\n"
+            "IMPORTANTE: SIEMPRE usar database_id en parent, NUNCA page_id.\n"
+            "NUNCA hagas pasos extra. NUNCA busques otras bases de datos. SOLO los 4 pasos en orden.\n"
+            "Comandos naturales:\n"
+            "  • 'revisa la base de datos quest/arcos' → Mostrar todas las páginas\n"
+            "  • 'crea una página llamada [título]' → Crear en quest (por defecto)\n"
+            "  • 'crea en arcos una página llamada [título]' → Crear en arcos\n"
+            "  • 'crea en quest una página llamada [título]' → Crear en quest (explícito)\n"
+            "  • 'cuales son las propiedades de la base de datos [nombre]' → Revisar propiedades\n"
+            "Confirma la creación exitosa al final.\n"
+        )
+
         extra_context = (
             "Contexto: Estos son los directorios disponibles (acceso garantizado): "
             f"{dirs_formatted}.\n"
             "Alias útiles (no distinguen mayúsculas/minúsculas):\n"
             f"{alias_block}.\n"
-            f"{instructions_block}"
-            "Recuerda NO preguntar rutas completas; usa los alias para resolverlas automáticamente."
+            f"{filesystem_instructions}\n"
+            f"{notion_quest_protocol}\n"
+            "Recuerda NO preguntar rutas completas; usa los alias para resolverlas automáticamente. "
+            "Para Notion, siempre busca primero la base de datos 'quest' antes de crear contenido."
         )
         # Insertar justo después del mensaje de instrucciones original para mantener prioridad
         insert_index = 1 if len(self.conversation_history) >= 1 else 0
         self.conversation_history.insert(insert_index, HumanMessage(content=extra_context))
+        
+        # Asegurar que el notion_quest_protocol esté en el historial principal
+        # Buscar si ya existe un mensaje con el protocolo
+        protocol_exists = any(
+            "PROTOCOLO DIRECTO PARA NOTION QUEST Y ARCOS" in str(msg.content) 
+            for msg in self.conversation_history
+        )
+        
+        if not protocol_exists:
+            # Añadir el protocolo como mensaje separado para asegurar que esté en el historial
+            self.conversation_history.append(HumanMessage(content=notion_quest_protocol))
 
 # Alias para mantener compatibilidad con el código existente
 GeminiClient = AuraClient
