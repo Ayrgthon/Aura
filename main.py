@@ -10,8 +10,12 @@ import warnings
 import subprocess
 import threading
 import time
+from dotenv import load_dotenv
 from client import AuraClient
 from engine.voice.hear import initialize_recognizer, listen_for_command
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 # Silenciar warnings
 warnings.filterwarnings("ignore")
@@ -246,7 +250,13 @@ class AuraAssistant:
     def _get_brave_search_config(self):
         """Obtiene la configuración del MCP Brave Search"""
         print("🔍 Configurando Brave Search...")
-        print("✅ Usando API key demo para búsquedas web")
+        
+        brave_api_key = os.getenv("BRAVE_API_KEY")
+        if not brave_api_key:
+            print("❌ BRAVE_API_KEY no encontrada en las variables de entorno")
+            return {}
+        
+        print("✅ Usando API key desde variables de entorno")
         
         return {
             "brave-search": {
@@ -254,7 +264,7 @@ class AuraAssistant:
                 "args": ["-y", "@modelcontextprotocol/server-brave-search"],
                 "transport": "stdio",
                 "env": {
-                    "BRAVE_API_KEY": "YOUR_BRAVE_API_KEY_HERE"
+                    "BRAVE_API_KEY": brave_api_key
                 }
             }
         }

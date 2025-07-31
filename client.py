@@ -8,6 +8,7 @@ import warnings
 import logging
 from io import StringIO
 from contextlib import redirect_stderr, redirect_stdout
+from dotenv import load_dotenv
 from gtts import gTTS
 import pygame
 from typing import List, Dict, Any, Iterator, Optional, Literal
@@ -15,6 +16,9 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.schema import HumanMessage, AIMessage, BaseMessage
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 # Silenciar todos los warnings molestos
 warnings.filterwarnings("ignore", message="Convert_system_message_to_human will be deprecated!")
@@ -68,9 +72,14 @@ except ImportError as e:
     print(f"⚠️  Ollama no disponible: {e}")
     OLLAMA_AVAILABLE = False
 
-# Configurar API Key de Google
+# Configurar API Key de Google desde variables de entorno
 if GEMINI_AVAILABLE:
-    os.environ["GOOGLE_API_KEY"] = "YOUR_GOOGLE_API_KEY_HERE"
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    if google_api_key:
+        os.environ["GOOGLE_API_KEY"] = google_api_key
+    else:
+        print("⚠️  GOOGLE_API_KEY no encontrada en las variables de entorno")
+        GEMINI_AVAILABLE = False
 
 class StreamingCallbackHandler(BaseCallbackHandler):
     """
