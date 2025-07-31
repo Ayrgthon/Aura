@@ -10,17 +10,21 @@ import warnings
 import subprocess
 import threading
 import time
-import json
 from dotenv import load_dotenv
+from client import AuraClient
 
-# Cargar variables de entorno
+# Manejo de imports relativos/absolutos para funcionar desde src/ o como módulo
+try:
+    from voice.hear import initialize_recognizer, listen_for_command
+except ImportError:
+    # Si falla el import relativo, intentar import absoluto (cuando se ejecuta desde src/)
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from voice.hear import initialize_recognizer, listen_for_command
+
+# Cargar variables de entorno desde .env
 load_dotenv()
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from src.client import AuraClient
-from voice.hear import initialize_recognizer, listen_for_command
 
 # Silenciar warnings
 warnings.filterwarnings("ignore")
@@ -34,63 +38,67 @@ class AuraAssistant:
         self.frontend_process = None
         
     def setup_model(self):
-        """Configura el modelo LLM a usar"""
-        print("🤖 Configuración de Modelo LLM")
+        """Configura el modelo Gemini a usar"""
+        print("🤖 Configuración de Modelo Gemini")
         print("=" * 50)
         print("Modelos disponibles:")
-        print("1. 🟢 Google Gemini (gemini-2.0-flash-exp)")
-        print("2. 🦙 Ollama (qwen3:1.7b)")
-        print("3. 🛠️  Personalizado")
+        print("1. 🟢 gemini-2.5-pro (recomendado)")
+        print("2. 🟢 gemini-2.5-flash")
+        print("3. 🟢 gemini-2.5-flash-lite")
+        print("4. 🟢 gemini-2.0-flash")
+        print("5. 🟢 gemini-2.0-flash-lite")
+        print("6. 🛠️  Personalizado")
         
         while True:
             try:
-                choice = input("\nSelecciona un modelo (1-3): ").strip()
+                choice = input("\nSelecciona un modelo (1-6): ").strip()
                 
                 if choice == "1":
-                    # Google Gemini
-                    model_type = "gemini"
-                    model_name = "gemini-2.0-flash-exp"
-                    print(f"✅ Seleccionado: Google Gemini ({model_name})")
+                    model_name = "gemini-2.5-pro"
+                    print(f"✅ Seleccionado: {model_name}")
                     break
                     
                 elif choice == "2":
-                    # Ollama
-                    model_type = "ollama"
-                    model_name = "qwen3:1.7b"
-                    print(f"✅ Seleccionado: Ollama ({model_name})")
+                    model_name = "gemini-2.5-flash"
+                    print(f"✅ Seleccionado: {model_name}")
                     break
                     
                 elif choice == "3":
+                    model_name = "gemini-2.5-flash-lite"
+                    print(f"✅ Seleccionado: {model_name}")
+                    break
+                    
+                elif choice == "4":
+                    model_name = "gemini-2.0-flash"
+                    print(f"✅ Seleccionado: {model_name}")
+                    break
+                    
+                elif choice == "5":
+                    model_name = "gemini-2.0-flash-lite"
+                    print(f"✅ Seleccionado: {model_name}")
+                    break
+                    
+                elif choice == "6":
                     # Personalizado
                     print("\nConfiguración personalizada:")
-                    model_type = input("Tipo de modelo (gemini/ollama): ").strip().lower()
-                    
-                    if model_type not in ["gemini", "ollama"]:
-                        print("❌ Tipo de modelo no válido")
-                        continue
-                        
-                    if model_type == "gemini":
-                        print("Ejemplos: gemini-1.5-flash, gemini-1.5-pro, gemini-2.0-flash-exp")
-                        model_name = input("Nombre del modelo: ").strip()
-                    else:
-                        print("Ejemplos: qwen3:1.7b, llama3.2:latest, codellama:latest")
-                        model_name = input("Nombre del modelo: ").strip()
+                    print("Ejemplos: gemini-2.5-pro, gemini-2.5-flash, gemini-2.0-flash")
+                    model_name = input("Nombre del modelo Gemini: ").strip()
                     
                     if not model_name:
                         print("❌ Nombre de modelo no puede estar vacío")
                         continue
                         
-                    print(f"✅ Configuración personalizada: {model_type.upper()} ({model_name})")
+                    print(f"✅ Configuración personalizada: {model_name}")
                     break
                     
                 else:
-                    print("❌ Opción no válida. Selecciona 1, 2 o 3.")
+                    print("❌ Opción no válida. Selecciona 1, 2, 3, 4, 5 o 6.")
                     
             except KeyboardInterrupt:
                 print("\n👋 ¡Hasta luego!")
                 exit(0)
         
-        return model_type, model_name
+        return model_name
     
     def setup_voice(self):
         """Configura las capacidades de voz"""
@@ -133,99 +141,16 @@ class AuraAssistant:
                 exit(0)
     
     async def setup_mcp(self):
-        """Configura los servidores MCP"""
-        print("\n🔧 Configuración de MCP (Model Context Protocol)")
-        print("=" * 55)
-        print("Opciones disponibles:")
-        print("1. 📁 Solo Filesystem (operaciones con archivos)")
-        print("2. 🔍 Solo Brave Search (búsquedas web)")
-        print("3. 🗃️ Solo Obsidian Memory (memoria centralizada)")
-        print("4. 🌐 Solo Playwright (automatización web)")
-        print("5. 📝 Solo Notion (gestión de notas)")
-        print("6. 🌐 Filesystem + Brave Search")
-        print("7. 🧠 Obsidian Memory + Brave Search (recomendado)")
-        print("8. 🔧 Filesystem + Obsidian Memory + Brave Search")
-        print("9. 🚀 Filesystem + Brave Search + Playwright (ecommerce)")
-        print("10. 📝 Notion + Brave Search (productividad)")
-        print("11. ⭐ Todos los MCPs (completo)")
-        print("0. ❌ Sin MCP")
+        """Configura los servidores MCP con todas las herramientas disponibles"""
+        print("\n🔧 Configurando MCP (Model Context Protocol)")
+        print("🚀 Activando todas las herramientas: Filesystem + Brave Search + Obsidian Memory")
+        print("=" * 70)
         
-        while True:
-            try:
-                choice = input("\nSelecciona configuración MCP (1-9, 0): ").strip()
-                
-                if choice == "1":
-                    # Solo filesystem
-                    mcp_config = self._get_filesystem_config()
-                    break
-                elif choice == "2":
-                    # Solo Brave Search
-                    mcp_config = self._get_brave_search_config()
-                    break
-                elif choice == "3":
-                    # Solo Obsidian Memory
-                    mcp_config = self._get_obsidian_memory_config()
-                    break
-                elif choice == "4":
-                    # Solo Playwright
-                    mcp_config = self._get_playwright_config()
-                    break
-                elif choice == "5":
-                    # Solo Notion
-                    mcp_config = self._get_notion_config()
-                    break
-                elif choice == "6":
-                    # Filesystem + Brave Search
-                    filesystem_config = self._get_filesystem_config()
-                    brave_config = self._get_brave_search_config()
-                    mcp_config = {**filesystem_config, **brave_config}
-                    break
-                elif choice == "7":
-                    # Obsidian Memory + Brave Search
-                    obsidian_config = self._get_obsidian_memory_config()
-                    brave_config = self._get_brave_search_config()
-                    mcp_config = {**obsidian_config, **brave_config}
-                    break
-                elif choice == "8":
-                    # Filesystem + Obsidian Memory + Brave Search
-                    filesystem_config = self._get_filesystem_config()
-                    brave_config = self._get_brave_search_config()
-                    obsidian_config = self._get_obsidian_memory_config()
-                    mcp_config = {**filesystem_config, **brave_config, **obsidian_config}
-                    break
-                elif choice == "9":
-                    # Filesystem + Brave Search + Playwright (ecommerce)
-                    filesystem_config = self._get_filesystem_config()
-                    brave_config = self._get_brave_search_config()
-                    playwright_config = self._get_playwright_config()
-                    mcp_config = {**filesystem_config, **brave_config, **playwright_config}
-                    break
-                elif choice == "10":
-                    # Notion + Brave Search
-                    notion_config = self._get_notion_config()
-                    brave_config = self._get_brave_search_config()
-                    mcp_config = {**notion_config, **brave_config}
-                    break
-                elif choice == "11":
-                    # Todos los MCPs
-                    filesystem_config = self._get_filesystem_config()
-                    brave_config = self._get_brave_search_config()
-                    obsidian_config = self._get_obsidian_memory_config()
-                    playwright_config = self._get_playwright_config()
-                    notion_config = self._get_notion_config()
-                    mcp_config = {**filesystem_config, **brave_config, **obsidian_config, **playwright_config, **notion_config}
-                    break
-                elif choice == "0":
-                    # Sin MCP
-                    print("✅ Continuando sin MCP")
-                    return False
-                else:
-                    print("❌ Opción no válida. Selecciona 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 o 0.")
-                    continue
-                    
-            except KeyboardInterrupt:
-                print("\n👋 ¡Hasta luego!")
-                exit(0)
+        # Configurar todos los MCPs disponibles
+        filesystem_config = self._get_filesystem_config()
+        brave_config = self._get_brave_search_config()
+        obsidian_config = self._get_obsidian_memory_config()
+        mcp_config = {**filesystem_config, **brave_config, **obsidian_config}
         
         if not self.client:
             print("❌ Cliente no inicializado")
@@ -254,10 +179,14 @@ class AuraAssistant:
         possible_dirs = [
             (home_dir, "home"),
             (f"{home_dir}/Documents", "Documents"),
-            (f"{home_dir}/Downloads", "Downloads"),
+            (f"{home_dir}/Documentos", "Documentos"),
+            (f"{home_dir}/Desktop", "Desktop"),
+            (f"{home_dir}/Escritorio", "Escritorio"),
             (f"{home_dir}/Pictures", "Pictures"),
+            (f"{home_dir}/Descargas", "Descargas"),
+            (f"{home_dir}/Downloads", "Downloads"),
             ("/tmp", "temporal"),
-            ("/home/ary/Documents/Ary Vault", "Obsidian Vault")
+            ("/home/ary/Documents/Ary Vault", "Obsidian Vault")  # Actualizada ruta
         ]
         
         # Filtrar solo directorios que existen
@@ -290,10 +219,10 @@ class AuraAssistant:
         
         brave_api_key = os.getenv("BRAVE_API_KEY")
         if not brave_api_key:
-            print("⚠️  BRAVE_API_KEY no encontrada en .env")
+            print("❌ BRAVE_API_KEY no encontrada en las variables de entorno")
             return {}
         
-        print("✅ Usando API key de Brave Search")
+        print("✅ Usando API key desde variables de entorno")
         
         return {
             "brave-search": {
@@ -318,7 +247,7 @@ class AuraAssistant:
             return {}
         
         # Verificar que el servidor MCP existe
-        server_path = "./obsidian_memory_server.js"
+        server_path = "./mcp/obsidian_memory_server.js"
         if not os.path.exists(server_path):
             print(f"❌ El servidor MCP no existe en: {server_path}")
             print("💡 Asegúrate de que el archivo obsidian_memory_server.js está en el directorio actual")
@@ -330,61 +259,8 @@ class AuraAssistant:
         return {
             "obsidian-memory": {
                 "command": "node",
-                "args": ["./mcp/obsidian_memory_server.js"],
+                "args": [server_path],
                 "transport": "stdio"
-            }
-        }
-    
-    def _get_playwright_config(self):
-        """Obtiene la configuración del MCP Playwright"""
-        print("🌐 Configurando Playwright...")
-        
-        # Verificar que Playwright está instalado
-        try:
-            import subprocess
-            result = subprocess.run(["npx", "playwright", "--version"], 
-                                  capture_output=True, text=True, timeout=10)
-            if result.returncode == 0:
-                print("✅ Playwright detectado y listo")
-            else:
-                print("⚠️  Playwright no está completamente instalado")
-                print("💡 Ejecuta: npx playwright install")
-                return {}
-        except Exception as e:
-            print(f"⚠️  Error verificando Playwright: {e}")
-            return {}
-        
-        return {
-            "playwright": {
-                "command": "npx",
-                "args": ["-y", "@playwright/mcp"],
-                "transport": "stdio"
-            }
-        }
-    
-    def _get_notion_config(self):
-        """Obtiene la configuración del MCP Notion"""
-        print("📝 Configurando Notion...")
-        
-        notion_api_key = os.getenv("NOTION_API_KEY")
-        if not notion_api_key:
-            print("⚠️  NOTION_API_KEY no encontrada en .env")
-            print("💡 Obtén tu API key en: https://www.notion.so/my-integrations")
-            return {}
-        
-        print("✅ Usando API key de Notion")
-        
-        return {
-            "notion": {
-                "command": "npx",
-                "args": ["-y", "@notionhq/notion-mcp-server"],
-                "transport": "stdio",
-                "env": {
-                    "OPENAPI_MCP_HEADERS": json.dumps({
-                        "Authorization": f"Bearer {notion_api_key}",
-                        "Notion-Version": "2022-06-28"
-                    })
-                }
             }
         }
     
@@ -424,6 +300,18 @@ class AuraAssistant:
         except Exception as e:
             print(f"❌ Error iniciando interfaz de voz: {e}")
             self.cleanup_processes()
+    
+    async def cleanup_all(self):
+        """Limpia todos los recursos"""
+        # Limpiar cliente si existe
+        if self.client:
+            try:
+                await self.client.cleanup()
+            except Exception as e:
+                print(f"⚠️  Error limpiando cliente: {e}")
+        
+        # Limpiar procesos
+        self.cleanup_processes()
     
     def cleanup_processes(self):
         """Limpia los procesos iniciados"""
@@ -491,13 +379,8 @@ class AuraAssistant:
                     print("❌ Cliente no disponible")
                     continue
                     
-                print(f"\n🤖 {self.client.model_type.upper()}:", end=" ")
-
-                # Si hay herramientas MCP, usar flujo multi-paso
-                if self.client.mcp_tools:
-                    await self._multi_step_agent(user_input)
-                else:
-                    await self.client.chat_with_voice(user_input)
+                print(f"\n🤖 GEMINI:", end=" ")
+                await self.client.chat_with_voice(user_input)
                 
             except KeyboardInterrupt:
                 print("\n👋 ¡Hasta luego!")
@@ -505,77 +388,23 @@ class AuraAssistant:
             except Exception as e:
                 print(f"❌ Error: {e}")
     
-    async def _multi_step_agent(self, user_input: str):
-        """Agente sencillo ReAct con múltiples pasos y callbacks de voz"""
-        from langchain.schema import HumanMessage, AIMessage
-        from voice.speak import speak_async
-
-        if not self.client:
-            print("❌ Cliente no inicializado")
-            return
-
-        model_with_tools = self.client.model.bind_tools(self.client.mcp_tools)
-
-        # Historial temporal que incluye instrucciones de sistema y alias
-        messages = list(self.client.conversation_history)
-        messages.append(HumanMessage(content=user_input))
-
-        step = 1
-        while True:
-            # Pensar
-            speak_async(f"Paso {step}: pensando …")
-            response = model_with_tools.invoke(messages)
-
-            # ¿Pidió herramientas?
-            if hasattr(response, 'tool_calls') and getattr(response, 'tool_calls'):
-                for tool_call in getattr(response, 'tool_calls'):
-                    tool_name = tool_call['name']
-                    args = tool_call.get('args', {})
-                    speak_async(f"Ejecutando {tool_name}")
-                    try:
-                        result = await self.client._execute_mcp_tool(tool_call)
-                        speak_async(f"{tool_name} completado")
-                    except Exception as e:
-                        speak_async(f"Error en {tool_name}")
-                        result = f"Error: {e}"
-
-                    # Añadir al historial
-                    messages.append(AIMessage(content="", additional_kwargs={'tool_calls':[tool_call]}))
-                    messages.append(HumanMessage(content=f"Observación: {result}"))
-                step += 1
-                # Continuar loop para permitir nuevos planes
-                continue
-            else:
-                # Respuesta final
-                final_answer = response.content
-                speak_async("Respuesta lista")
-                print(final_answer)
-                # Guardar en historial global
-                self.client.conversation_history.append(HumanMessage(content=user_input))
-                self.client.conversation_history.append(AIMessage(content=final_answer))
-                break
-    
     async def main(self):
         """Función principal del asistente"""
-        print("🌟 AURA - Asistente de IA Universal")
-        print("Soporte para Gemini, Ollama y MCP")
+        print("🌟 AURA - Asistente Gemini con MCP")
+        print("Soporte para Google Gemini y MCP")
         print("=" * 50)
         
         try:
             # 1. Configurar modelo
-            model_type, model_name = self.setup_model()
+            model_name = self.setup_model()
             
             # 2. Configurar voz
             enable_voice = self.setup_voice()
             
             # 3. Inicializar cliente
-            print(f"\n🚀 Inicializando cliente {model_type.upper()}...")
-            # Validar tipo de modelo
-            if model_type not in ["gemini", "ollama"]:
-                raise ValueError(f"Tipo de modelo no soportado: {model_type}")
+            print(f"\n🚀 Inicializando cliente Gemini...")
             
             self.client = AuraClient(
-                model_type=model_type,  # type: ignore
                 model_name=model_name,
                 enable_voice=enable_voice
             )
@@ -590,8 +419,8 @@ class AuraAssistant:
             print(f"❌ Error crítico: {e}")
             return 1
         finally:
-            # Limpiar procesos al salir
-            self.cleanup_processes()
+            # Limpiar todos los recursos al salir
+            await self.cleanup_all()
         
         return 0
 

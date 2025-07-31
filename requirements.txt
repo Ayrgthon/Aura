@@ -1,10 +1,11 @@
 # Dependencias para cliente Ollama
 requests>=2.31.0
 
-# Dependencias para LangChain y Google Generative AI
-langchain>=0.1.0
-langchain-google-genai>=1.0.0
-langchain-ollama>=0.1.0
+# API de Google Gemini nativo
+google-generativeai>=0.8.0
+
+# MCP SDK oficial
+mcp
 
 # Dependencias para reconocimiento de voz (STT)
 sounddevice>=0.4.6
@@ -18,12 +19,6 @@ pygame>=2.1.0
 
 # Utilidades adicionales
 numpy>=1.24.0
-
-# MCP (Model Context Protocol) adapters
-langchain-mcp-adapters>=0.0.9
-
-# MCP server utilities (opcional para crear servidores propios)
-mcp>=1.0.0
 
 # Utilidades generales
 python-dotenv>=1.0.0
