@@ -16,7 +16,7 @@ interface UseWebSocketOptions {
 }
 
 export const useWebSocket = ({
-  url = 'ws://localhost:8765',
+  url = 'ws://localhost:8766',
   onMessage,
   onOpen,
   onClose,

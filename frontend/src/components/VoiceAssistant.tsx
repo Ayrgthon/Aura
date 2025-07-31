@@ -26,7 +26,7 @@ const VoiceAssistant = () => {
     // Estados para configuración de modelos
   const [showModelMenu, setShowModelMenu] = useState(false);
   const [modelType, setModelType] = useState<'gemini' | 'ollama'>('gemini');
-  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash-exp');
+  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite');
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
   
   // Estados para control de encendido/apagado
@@ -35,14 +35,19 @@ const VoiceAssistant = () => {
   
   // Estados para motor TTS
   const [ttsEngine, setTtsEngine] = useState<'gtts' | 'elevenlabs'>('gtts');
+  
+  // Estados para selección de idioma
+  const [currentLanguage, setCurrentLanguage] = useState<'es' | 'en'>('es');
+  const [availableLanguages] = useState<{[key: string]: string}>({
+    'es': 'Español',
+    'en': 'English'
+  });
 
-  // Modelos de Gemini disponibles
+  // Modelos de Gemini disponibles (tus modelos pagados)
   const geminiModels = [
-    'gemini-2.0-flash-exp',
     'gemini-2.5-pro',
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-preview-04-17',
-    'gemini-2.5-flash-lite-preview-06-17',
+    'gemini-2.5-flash', 
+    'gemini-2.5-flash-lite',
     'gemini-2.0-flash',
     'gemini-2.0-flash-lite'
   ];
@@ -65,7 +70,7 @@ const VoiceAssistant = () => {
     setModelType(type);
     let newModel = '';
     if (type === 'gemini') {
-      newModel = 'gemini-2.0-flash-exp';
+      newModel = 'gemini-2.5-flash-lite';
       setSelectedModel(newModel);
     } else if (ollamaModels.length > 0) {
       newModel = ollamaModels[0];
@@ -110,6 +115,20 @@ const VoiceAssistant = () => {
       sendMessage({
         type: 'change_tts_engine',
         engine: engine
+      });
+    }
+  };
+
+  // Función para cambiar idioma
+  const handleLanguageChange = (language: 'es' | 'en') => {
+    setCurrentLanguage(language);
+    toast.success(`Idioma cambiado a: ${availableLanguages[language]}`);
+    
+    // Enviar cambio al backend
+    if (isConnected) {
+      sendMessage({
+        type: 'change_language',
+        language: language
       });
     }
   };
@@ -267,6 +286,11 @@ const VoiceAssistant = () => {
           if (message.message) {
             console.log('TTS Status:', message.message);
           }
+          break;
+          
+        case 'language_changed':
+          setCurrentLanguage(message.language);
+          toast.success(`Idioma cambiado a ${availableLanguages[message.language] || message.language}`);
           break;
       }
     },
@@ -619,6 +643,29 @@ const VoiceAssistant = () => {
                   </div>
                 </div>
                 
+                  {/* Selector de idioma */}
+                  <div className="mb-4">
+                    <label className="text-xs text-muted-foreground mb-2 block">Idioma de Reconocimiento:</label>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant={currentLanguage === 'es' ? 'default' : 'outline'}
+                        onClick={() => handleLanguageChange('es')}
+                        className="flex-1"
+                      >
+                        🇪🇸 Español
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={currentLanguage === 'en' ? 'default' : 'outline'}
+                        onClick={() => handleLanguageChange('en')}
+                        className="flex-1"
+                      >
+                        🇺🇸 English
+                      </Button>
+                    </div>
+                  </div>
+
                                   {/* Selector de motor TTS */}
                   <div className="mb-4">
                     <label className="text-xs text-muted-foreground mb-2 block">Motor de Voz:</label>
