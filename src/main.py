@@ -12,7 +12,16 @@ import threading
 import time
 from dotenv import load_dotenv
 from client import AuraClient
-from engine.voice.hear import initialize_recognizer, listen_for_command
+
+# Manejo de imports relativos/absolutos para funcionar desde src/ o como módulo
+try:
+    from ..engine.voice.hear import initialize_recognizer, listen_for_command
+except ImportError:
+    # Si falla el import relativo, intentar import absoluto (cuando se ejecuta desde src/)
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from engine.voice.hear import initialize_recognizer, listen_for_command
 
 # Cargar variables de entorno desde .env
 load_dotenv()
@@ -29,63 +38,67 @@ class AuraAssistant:
         self.frontend_process = None
         
     def setup_model(self):
-        """Configura el modelo LLM a usar"""
-        print("🤖 Configuración de Modelo LLM")
+        """Configura el modelo Gemini a usar"""
+        print("🤖 Configuración de Modelo Gemini")
         print("=" * 50)
         print("Modelos disponibles:")
-        print("1. 🟢 Google Gemini (gemini-2.0-flash-exp)")
-        print("2. 🦙 Ollama (qwen3:1.7b)")
-        print("3. 🛠️  Personalizado")
+        print("1. 🟢 gemini-2.5-pro (recomendado)")
+        print("2. 🟢 gemini-2.5-flash")
+        print("3. 🟢 gemini-2.5-flash-lite")
+        print("4. 🟢 gemini-2.0-flash")
+        print("5. 🟢 gemini-2.0-flash-lite")
+        print("6. 🛠️  Personalizado")
         
         while True:
             try:
-                choice = input("\nSelecciona un modelo (1-3): ").strip()
+                choice = input("\nSelecciona un modelo (1-6): ").strip()
                 
                 if choice == "1":
-                    # Google Gemini
-                    model_type = "gemini"
-                    model_name = "gemini-2.0-flash-exp"
-                    print(f"✅ Seleccionado: Google Gemini ({model_name})")
+                    model_name = "gemini-2.5-pro"
+                    print(f"✅ Seleccionado: {model_name}")
                     break
                     
                 elif choice == "2":
-                    # Ollama
-                    model_type = "ollama"
-                    model_name = "qwen3:1.7b"
-                    print(f"✅ Seleccionado: Ollama ({model_name})")
+                    model_name = "gemini-2.5-flash"
+                    print(f"✅ Seleccionado: {model_name}")
                     break
                     
                 elif choice == "3":
+                    model_name = "gemini-2.5-flash-lite"
+                    print(f"✅ Seleccionado: {model_name}")
+                    break
+                    
+                elif choice == "4":
+                    model_name = "gemini-2.0-flash"
+                    print(f"✅ Seleccionado: {model_name}")
+                    break
+                    
+                elif choice == "5":
+                    model_name = "gemini-2.0-flash-lite"
+                    print(f"✅ Seleccionado: {model_name}")
+                    break
+                    
+                elif choice == "6":
                     # Personalizado
                     print("\nConfiguración personalizada:")
-                    model_type = input("Tipo de modelo (gemini/ollama): ").strip().lower()
-                    
-                    if model_type not in ["gemini", "ollama"]:
-                        print("❌ Tipo de modelo no válido")
-                        continue
-                        
-                    if model_type == "gemini":
-                        print("Ejemplos: gemini-1.5-flash, gemini-1.5-pro, gemini-2.0-flash-exp")
-                        model_name = input("Nombre del modelo: ").strip()
-                    else:
-                        print("Ejemplos: qwen3:1.7b, llama3.2:latest, codellama:latest")
-                        model_name = input("Nombre del modelo: ").strip()
+                    print("Ejemplos: gemini-2.5-pro, gemini-2.5-flash, gemini-2.0-flash")
+                    model_name = input("Nombre del modelo Gemini: ").strip()
                     
                     if not model_name:
                         print("❌ Nombre de modelo no puede estar vacío")
                         continue
                         
-                    print(f"✅ Configuración personalizada: {model_type.upper()} ({model_name})")
+                    print(f"✅ Configuración personalizada: {model_name}")
                     break
                     
                 else:
-                    print("❌ Opción no válida. Selecciona 1, 2 o 3.")
+                    print("❌ Opción no válida. Selecciona 1, 2, 3, 4, 5 o 6.")
                     
             except KeyboardInterrupt:
                 print("\n👋 ¡Hasta luego!")
                 exit(0)
         
-        return model_type, model_name
+        return model_name
     
     def setup_voice(self):
         """Configura las capacidades de voz"""
@@ -414,7 +427,7 @@ class AuraAssistant:
                     print("❌ Cliente no disponible")
                     continue
                     
-                print(f"\n🤖 {self.client.model_type.upper()}:", end=" ")
+                print(f"\n🤖 GEMINI:", end=" ")
                 await self.client.chat_with_voice(user_input)
                 
             except KeyboardInterrupt:
@@ -425,25 +438,21 @@ class AuraAssistant:
     
     async def main(self):
         """Función principal del asistente"""
-        print("🌟 AURA - Asistente de IA Universal")
-        print("Soporte para Gemini, Ollama y MCP")
+        print("🌟 AURA - Asistente Gemini con MCP")
+        print("Soporte para Google Gemini y MCP")
         print("=" * 50)
         
         try:
             # 1. Configurar modelo
-            model_type, model_name = self.setup_model()
+            model_name = self.setup_model()
             
             # 2. Configurar voz
             enable_voice = self.setup_voice()
             
             # 3. Inicializar cliente
-            print(f"\n🚀 Inicializando cliente {model_type.upper()}...")
-            # Validar tipo de modelo
-            if model_type not in ["gemini", "ollama"]:
-                raise ValueError(f"Tipo de modelo no soportado: {model_type}")
+            print(f"\n🚀 Inicializando cliente Gemini...")
             
             self.client = AuraClient(
-                model_type=model_type,  # type: ignore
                 model_name=model_name,
                 enable_voice=enable_voice
             )

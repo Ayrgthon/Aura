@@ -1,30 +1,24 @@
-# Requerimientos actualizados - Completamente sin Langchain
-# Usa la librería oficial de MCP y Google Gemini nativo
+# Requerimientos para AURA - Asistente Gemini con MCP
+# Solo dependencias esenciales para Gemini y MCP
 
-# API de Google Gemini nativo (reemplaza langchain-google-genai)
+# API de Google Gemini nativo
 google-generativeai>=0.8.0
 
-# MCP SDK oficial (reemplaza langchain-mcp-adapters)
+# MCP SDK oficial
 mcp
 
-# Dependencias principales del proyecto
+# Dependencias principales
 python-dotenv
+
+# Dependencias de voz (opcionales)
 gtts
 pygame
-requests
-
-# Dependencias de voz (reconocimiento y síntesis)
 sounddevice
 vosk
 mutagen
 
-# Dependencias opcionales para desarrollo web
-# websockets
-# fastapi
-# uvicorn
-
 # Notas de instalación:
-# 1. Para MCP, es recomendado usar uv: uv add "mcp[cli]"
-# 2. Si usas pip: pip install "mcp[cli]"
-# 3. Asegúrate de tener Node.js instalado para servidores MCP
-# 4. Para Vosk, necesitas descargar el modelo de español manualmente
+# 1. Para MCP: pip install "mcp[cli]" o uv add "mcp[cli]"
+# 2. Asegúrate de tener Node.js instalado para servidores MCP
+# 3. Para Vosk, necesitas descargar el modelo de español manualmente
+# 4. Si no usas voz, puedes omitir: gtts, pygame, sounddevice, vosk, mutagen
