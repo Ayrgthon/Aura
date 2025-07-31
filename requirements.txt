@@ -1,35 +1,30 @@
-# Dependencias para cliente Ollama
-requests>=2.31.0
+# Requerimientos actualizados - Completamente sin Langchain
+# Usa la librería oficial de MCP y Google Gemini nativo
 
-# Dependencias para LangChain y Google Generative AI
-langchain>=0.1.0
-langchain-google-genai>=1.0.0
-langchain-ollama>=0.1.0
+# API de Google Gemini nativo (reemplaza langchain-google-genai)
+google-generativeai>=0.8.0
 
-# Dependencias para reconocimiento de voz (STT)
-sounddevice>=0.4.6
-vosk>=0.3.45
+# MCP SDK oficial (reemplaza langchain-mcp-adapters)
+mcp
 
-# Dependencias para síntesis de voz (TTS)
+# Dependencias principales del proyecto
+python-dotenv
 gtts
-elevenlabs
-requests>=2.3.0
-pygame>=2.1.0
+pygame
+requests
 
-# Utilidades adicionales
-numpy>=1.24.0
+# Dependencias de voz (reconocimiento y síntesis)
+sounddevice
+vosk
+mutagen
 
-# MCP (Model Context Protocol) adapters
-langchain-mcp-adapters>=0.0.9
+# Dependencias opcionales para desarrollo web
+# websockets
+# fastapi
+# uvicorn
 
-# MCP server utilities (opcional para crear servidores propios)
-mcp>=1.0.0
-
-# Utilidades generales
-python-dotenv>=1.0.0
-
-# WebSocket para interfaz web
-websockets>=12.0
-
-# Mutagen para la nueva dependencia de cálculo de duración MP3
-mutagen>=1.46 
+# Notas de instalación:
+# 1. Para MCP, es recomendado usar uv: uv add "mcp[cli]"
+# 2. Si usas pip: pip install "mcp[cli]"
+# 3. Asegúrate de tener Node.js instalado para servidores MCP
+# 4. Para Vosk, necesitas descargar el modelo de español manualmente

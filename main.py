@@ -217,10 +217,11 @@ class AuraAssistant:
             (f"{home_dir}/Documentos", "Documentos"),
             (f"{home_dir}/Desktop", "Desktop"),
             (f"{home_dir}/Escritorio", "Escritorio"),
+            (f"{home_dir}/Pictures", "Pictures"),
             (f"{home_dir}/Descargas", "Descargas"),
             (f"{home_dir}/Downloads", "Downloads"),
             ("/tmp", "temporal"),
-            ("/home/ary/Documentos/Ary Vault", "Obsidian Vault")
+            ("/home/ary/Documents/Ary Vault", "Obsidian Vault")  # Actualizada ruta
         ]
         
         # Filtrar solo directorios que existen
@@ -274,7 +275,7 @@ class AuraAssistant:
         print("🗃️ Configurando Obsidian Memory...")
         
         # Verificar que el vault existe
-        vault_path = "/home/ary/Documentos/Ary Vault"
+        vault_path = "/home/ary/Documents/Ary Vault"
         if not os.path.exists(vault_path):
             print(f"❌ El vault de Obsidian no existe en: {vault_path}")
             print("💡 Verifica la ruta del vault en el archivo obsidian_memory_server.js")
@@ -334,6 +335,18 @@ class AuraAssistant:
         except Exception as e:
             print(f"❌ Error iniciando interfaz de voz: {e}")
             self.cleanup_processes()
+    
+    async def cleanup_all(self):
+        """Limpia todos los recursos"""
+        # Limpiar cliente si existe
+        if self.client:
+            try:
+                await self.client.cleanup()
+            except Exception as e:
+                print(f"⚠️  Error limpiando cliente: {e}")
+        
+        # Limpiar procesos
+        self.cleanup_processes()
     
     def cleanup_processes(self):
         """Limpia los procesos iniciados"""
@@ -445,8 +458,8 @@ class AuraAssistant:
             print(f"❌ Error crítico: {e}")
             return 1
         finally:
-            # Limpiar procesos al salir
-            self.cleanup_processes()
+            # Limpiar todos los recursos al salir
+            await self.cleanup_all()
         
         return 0
 

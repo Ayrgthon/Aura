@@ -12,23 +12,14 @@ from dotenv import load_dotenv
 from gtts import gTTS
 import pygame
 from typing import List, Dict, Any, Iterator, Optional, Literal
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.schema import HumanMessage, AIMessage, BaseMessage
-from langchain.callbacks.base import BaseCallbackHandler
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from gemini_client import GeminiClient, Message, StreamingCallback
 
 # Cargar variables de entorno desde .env
 load_dotenv()
 
 # Silenciar todos los warnings molestos
-warnings.filterwarnings("ignore", message="Convert_system_message_to_human will be deprecated!")
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
-
-# Configurar logging para silenciar mensajes de schema
-logging.getLogger("langchain").setLevel(logging.ERROR)
-logging.getLogger("langchain_core").setLevel(logging.ERROR)
-logging.getLogger("langchain_google_genai").setLevel(logging.ERROR)
 
 # Importar módulos de voz
 try:
@@ -50,120 +41,39 @@ except ImportError as e:
     VoiceSynthesizer = None
     get_synthesizer = None
 
-# Importaciones para MCP
+# Importaciones para MCP nativo
 try:
-    from langchain_mcp_adapters.client import MultiServerMCPClient
+    from mcp_client_native import NativeMCPClient, MCPToolCall
+    MCP_NATIVE_AVAILABLE = True
 except ImportError as e:
-    print(f"⚠️  Error cargando MCP: {e}")
-    MultiServerMCPClient = None
+    print(f"⚠️  Error cargando MCP nativo: {e}")
+    NativeMCPClient = None
+    MCPToolCall = None
+    MCP_NATIVE_AVAILABLE = False
 
-# Importar modelos LLM
+# Verificar disponibilidad de modelos
 try:
-    from langchain_google_genai import ChatGoogleGenerativeAI
+    import google.generativeai as genai
     GEMINI_AVAILABLE = True
 except ImportError as e:
     print(f"⚠️  Google Gemini no disponible: {e}")
     GEMINI_AVAILABLE = False
 
+# Para mantener compatibilidad con Ollama (cliente básico)
 try:
-    from langchain_ollama import ChatOllama
+    import requests
     OLLAMA_AVAILABLE = True
 except ImportError as e:
-    print(f"⚠️  Ollama no disponible: {e}")
+    print(f"⚠️  Requests no disponible para Ollama: {e}")
     OLLAMA_AVAILABLE = False
 
 # Configurar API Key de Google desde variables de entorno
 if GEMINI_AVAILABLE:
     google_api_key = os.getenv("GOOGLE_API_KEY")
-    if google_api_key:
-        os.environ["GOOGLE_API_KEY"] = google_api_key
-    else:
+    if not google_api_key:
         print("⚠️  GOOGLE_API_KEY no encontrada en las variables de entorno")
         GEMINI_AVAILABLE = False
 
-class StreamingCallbackHandler(BaseCallbackHandler):
-    """
-    Callback handler para manejar streaming de respuestas con TTS
-    """
-    def __init__(self, voice_streaming=False, voice_enabled=False):
-        super().__init__()
-        self.voice_streaming = voice_streaming
-        self.voice_enabled = voice_enabled
-        self.streaming_tts = None
-        self.full_response = ""
-        # Nueva lógica para streaming parcial
-        self.first_paragraph_done = False
-        self.remaining_buffer = ""
-        self.accumulated_first_para = ""
-        self.char_counter = 0
-        
-    def on_llm_start(self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any) -> None:
-        """Llamado cuando el LLM comienza a generar"""
-        if self.voice_streaming and self.voice_enabled:
-            try:
-                self.streaming_tts = start_streaming_tts()
-                print("🗣️ TTS en paralelo activado (via callbacks)")
-            except Exception as e:
-                print(f"❌ Error al inicializar TTS streaming: {e}")
-                self.streaming_tts = None
-                
-    def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
-        """Llamado cuando se genera un nuevo token"""
-        # Imprimir el token
-        print(token, end='', flush=True)
-        self.full_response += token
-        
-        # Streaming hasta el primer punto '.', luego el resto se reproduce completo
-        if self.voice_streaming:
-            if not self.first_paragraph_done:
-                # Iniciar streaming TTS si aún no
-                if self.streaming_tts is None and self.voice_enabled:
-                    try:
-                        self.streaming_tts = start_streaming_tts()
-                    except Exception as e:
-                        print(f"❌ Error iniciando TTS streaming: {e}")
-
-                if self.streaming_tts:
-                    try:
-                        add_text_to_stream(token)
-                    except Exception as e:
-                        print(f"\n❌ Error en TTS chunk: {e}")
-
-                # Detectar primer punto
-                if '.' in token:
-                    if self.streaming_tts:
-                        finish_streaming_tts()
-                        self.streaming_tts = None
-                    self.first_paragraph_done = True
-            else:
-                # Guardar el resto
-                self.remaining_buffer += token
-    
-    def on_llm_error(self, error: Exception, **kwargs: Any) -> None:
-        """Llamado cuando ocurre un error"""
-        print(f"\n❌ Error en LLM: {error}")
-        if self.streaming_tts:
-            try:
-                finish_streaming_tts()
-            except:
-                pass
-                
-    def on_llm_end(self, response, **kwargs: Any) -> None:
-        """Llamado cuando el LLM termina de generar"""
-        # Asegurar cierre del streaming si sigue abierto
-        if self.streaming_tts:
-            try:
-                finish_streaming_tts()
-            except Exception as e:
-                print(f"\n❌ Error al finalizar TTS streaming: {e}")
-
-        # Reproducir el resto del texto de una sola vez
-        if self.first_paragraph_done and self.remaining_buffer.strip() and self.voice_enabled:
-            try:
-                # Usar speak_async para no bloquear la impresión del texto restante
-                speak_async(self.remaining_buffer.strip())
-            except Exception as e:
-                print(f"❌ Error reproduciendo resto del texto: {e}")
 
 class AuraClient:
     def __init__(self, 
@@ -185,8 +95,10 @@ class AuraClient:
         self.context_size = context_size
         self.voice_enabled = enable_voice
         
-        # Inicializar modelo según el tipo
-        self.model = self._initialize_model()
+        # Inicializar cliente de modelo según el tipo
+        self.gemini_client = None
+        self.ollama_client = None
+        self._initialize_model()
         
         # Mensaje de sistema para guiar la salida a un formato fácil de leer en voz
         system_instructions = (
@@ -197,8 +109,8 @@ class AuraClient:
             "Evita emojis y símbolos innecesarios."
         )
 
-        self.conversation_history: List[BaseMessage] = [
-            HumanMessage(content=system_instructions)
+        self.conversation_history: List[Message] = [
+            Message(role="system", content=system_instructions)
         ]
         
         # Reactivar TTS de forma controlada
@@ -209,7 +121,7 @@ class AuraClient:
         # Lock para controlar orden del audio
         self.audio_lock = threading.Lock()
         
-        # Cliente MCP
+        # Cliente MCP nativo
         self.mcp_client = None
         self.mcp_tools = []
         
@@ -219,27 +131,63 @@ class AuraClient:
         """Inicializa el modelo LLM según la configuración"""
         if self.model_type == "gemini":
             if not GEMINI_AVAILABLE:
-                raise Exception("Google Gemini no está disponible. Instala: pip install langchain-google-genai")
+                raise Exception("Google Gemini no está disponible. Instala: pip install google-generativeai")
             
             model_name = self.model_name or "gemini-2.0-flash-exp"
             print(f"🤖 Inicializando Google Gemini: {model_name}")
-            return ChatGoogleGenerativeAI(
-                model=model_name,
-                convert_system_message_to_human=True,
+            self.gemini_client = GeminiClient(
+                model_name=model_name,
                 temperature=0.01
-
             )
         
         elif self.model_type == "ollama":
             if not OLLAMA_AVAILABLE:
-                raise Exception("Ollama no está disponible. Instala: pip install langchain-ollama")
+                raise Exception("Ollama no está disponible. Instala: pip install requests")
             
             model_name = self.model_name or "qwen2.5-coder:7b"
             print(f"🦙 Inicializando Ollama: {model_name}")
-            return ChatOllama(model=model_name)
+            # Para simplificar, crear un cliente básico de Ollama
+            self.ollama_client = self._create_ollama_client(model_name)
         
         else:
             raise ValueError(f"Tipo de modelo no soportado: {self.model_type}")
+    
+    def _create_ollama_client(self, model_name: str):
+        """Crea un cliente básico para Ollama"""
+        class SimpleOllamaClient:
+            def __init__(self, model_name: str):
+                self.model_name = model_name
+                self.base_url = "http://localhost:11434"
+            
+            def generate(self, messages: List[Message]) -> str:
+                """Genera respuesta usando la API de Ollama"""
+                try:
+                    # Convertir mensajes al formato de Ollama
+                    ollama_messages = []
+                    for msg in messages:
+                        if msg.role == "system":
+                            ollama_messages.append({"role": "system", "content": msg.content})
+                        elif msg.role == "user":
+                            ollama_messages.append({"role": "user", "content": msg.content})
+                        elif msg.role in ["assistant", "model"]:
+                            ollama_messages.append({"role": "assistant", "content": msg.content})
+                    
+                    payload = {
+                        "model": self.model_name,
+                        "messages": ollama_messages,
+                        "stream": False
+                    }
+                    
+                    response = requests.post(f"{self.base_url}/api/chat", json=payload)
+                    if response.status_code == 200:
+                        return response.json().get('message', {}).get('content', '')
+                    else:
+                        raise Exception(f"Ollama API error: {response.status_code}")
+                        
+                except Exception as e:
+                    raise Exception(f"Error conectando con Ollama: {e}")
+        
+        return SimpleOllamaClient(model_name)
     
     def _initialize_voice(self):
         """Inicializa las capacidades de voz"""
@@ -272,38 +220,42 @@ class AuraClient:
 
     async def setup_mcp_servers(self, mcp_configs: Dict[str, Dict] = None):
         """
-        Configura servidores MCP
+        Configura servidores MCP usando la librería oficial
         
         Args:
             mcp_configs: Configuración de servidores MCP
         """
-        if not MultiServerMCPClient:
-            print("❌ langchain-mcp-adapters no está instalado")
+        if not MCP_NATIVE_AVAILABLE or not NativeMCPClient:
+            print("❌ MCP SDK oficial no está instalado")
+            print("💡 Instala con: pip install mcp")
             return False
             
         try:
-            # Crear cliente MCP
-            self.mcp_client = MultiServerMCPClient(mcp_configs)  # type: ignore
+            # Crear cliente MCP nativo
+            self.mcp_client = NativeMCPClient()
             
-            # Obtener herramientas disponibles
-            self.mcp_tools = await self.mcp_client.get_tools()
+            # Configurar servidores
+            success = await self.mcp_client.setup_servers(mcp_configs)
             
-            print(f"✅ MCPs configurados correctamente. {len(self.mcp_tools)} herramientas disponibles:")
-            for tool in self.mcp_tools:
-                print(f"  - {tool.name}: {tool.description}")
-            
-            return True
+            if success:
+                # Obtener herramientas disponibles
+                self.mcp_tools = self.mcp_client.tools
+                return True
+            else:
+                self.mcp_client = None
+                self.mcp_tools = []
+                return False
             
         except Exception as e:
             print(f"❌ Error configurando MCPs: {e}")
-            print("ℹ️  Asegúrate de tener Node.js y npm instalados para usar el filesystem MCP")
+            print("ℹ️  Asegúrate de tener Node.js y npm instalados para usar servidores MCP")
             self.mcp_client = None
             self.mcp_tools = []
             return False
     
     async def _execute_mcp_tool(self, tool_call: Dict[str, Any]) -> str:
         """
-        Ejecuta una herramienta MCP silenciando mensajes de schema
+        Ejecuta una herramienta MCP usando la librería oficial
         
         Args:
             tool_call: Información de la llamada a la herramienta
@@ -317,32 +269,17 @@ class AuraClient:
         tool_name = tool_call['name']
         tool_args = tool_call.get('args', {})
         
-        # Buscar la herramienta en nuestras herramientas MCP
-        target_tool = None
-        for tool in self.mcp_tools:
-            if tool.name == tool_name:
-                target_tool = tool
-                break
-        
-        if not target_tool:
+        # Verificar que la herramienta existe
+        tool_exists = any(tool.name == tool_name for tool in self.mcp_tools)
+        if not tool_exists:
             raise Exception(f"Herramienta '{tool_name}' no encontrada")
         
-        # Ejecutar la herramienta silenciando mensajes de schema
+        # Ejecutar la herramienta usando el cliente nativo
         try:
-            # Capturar stderr para silenciar mensajes de "Key" y "$schema"
-            captured_stderr = StringIO()
-            with redirect_stderr(captured_stderr):
-                result = await target_tool.ainvoke(tool_args)
+            result = await self.mcp_client.execute_tool(tool_name, tool_args)
+            return result
         except Exception as e:
-            # Fallback a invoke si ainvoke no funciona
-            try:
-                captured_stderr = StringIO()
-                with redirect_stderr(captured_stderr):
-                    result = target_tool.invoke(tool_args)
-            except Exception as e2:
-                raise Exception(f"Error ejecutando herramienta: {e2}")
-        
-        return str(result)
+            raise Exception(f"Error ejecutando herramienta '{tool_name}': {e}")
 
     async def chat_with_voice(self, user_input: str) -> str:
         """
@@ -357,7 +294,7 @@ class AuraClient:
         """
         try:
             # Agregar mensaje del usuario al historial
-            self.conversation_history.append(HumanMessage(content=user_input))
+            self.conversation_history.append(Message(role="user", content=user_input))
             
             # Usar un enfoque de dos fases si hay herramientas MCP
             if self.mcp_tools:
@@ -372,51 +309,100 @@ class AuraClient:
     
     async def _chat_with_mcp_synthesis(self, user_input: str) -> str:
         """
-        Chat con MCPs usando síntesis natural de respuestas
+        Chat con MCPs usando agente multipasos - puede ejecutar múltiples rondas de herramientas
         """
         print(f"🔧 Usando {len(self.mcp_tools)} herramientas MCP con {self.model_type.upper()}")
         
-        # Fase 1: Ejecutar herramientas MCP y recopilar información
-        model_with_tools = self.model.bind_tools(self.mcp_tools)
-        tool_results = []
-        mcp_used = False
+        all_tool_results = []
+        max_iterations = 5  # Máximo de iteraciones para evitar loops infinitos
+        iteration = 0
         
         try:
-            # Obtener respuesta inicial con herramientas
-            response = model_with_tools.invoke(self.conversation_history)
-            
-            # Verificar si se usaron herramientas MCP
-            if hasattr(response, 'tool_calls') and getattr(response, 'tool_calls', None):
-                mcp_used = True
-                print("🔍 Recopilando información...")
+            # Para Gemini, usar el cliente nativo con herramientas
+            if self.model_type == "gemini" and self.gemini_client:
+                current_conversation = self.conversation_history.copy()
                 
-                for tool_call in getattr(response, 'tool_calls', []):
-                    print(f"🔧 Ejecutando: {tool_call['name']}")
+                while iteration < max_iterations:
+                    iteration += 1
+                    print(f"🔄 Iteración {iteration}")
                     
-                    try:
-                        tool_result = await self._execute_mcp_tool(tool_call)
-                        tool_results.append({
-                            'tool_name': tool_call['name'],
-                            'query': tool_call.get('args', {}),
-                            'result': tool_result
-                        })
-                        print(f"✅ {tool_call['name']} completado")
+                    # Convertir herramientas MCP al formato de Gemini
+                    gemini_tools = self.mcp_client.get_tools_for_gemini() if self.mcp_client else []
+                    
+                    # Obtener respuesta con herramientas
+                    response = self.gemini_client.generate_with_tools(current_conversation, gemini_tools)
+                    
+                    # Verificar si se usaron herramientas MCP en esta iteración
+                    if response.get('tool_calls'):
+                        print(f"🔍 Ejecutando {len(response['tool_calls'])} herramientas...")
                         
-                    except Exception as e:
-                        print(f"❌ Error en {tool_call['name']}: {e}")
-                        tool_results.append({
-                            'tool_name': tool_call['name'],
-                            'query': tool_call.get('args', {}),
-                            'result': f"Error: {e}"
-                        })
+                        # Ejecutar herramientas de esta iteración
+                        iteration_results = []
+                        for tool_call in response['tool_calls']:
+                            print(f"🔧 Ejecutando: {tool_call['name']}")
+                            
+                            try:
+                                tool_result = await self._execute_mcp_tool(tool_call)
+                                tool_result_data = {
+                                    'tool_name': tool_call['name'],
+                                    'query': tool_call.get('args', {}),
+                                    'result': tool_result
+                                }
+                                iteration_results.append(tool_result_data)
+                                all_tool_results.append(tool_result_data)
+                                print(f"✅ {tool_call['name']} completado")
+                                
+                            except Exception as e:
+                                print(f"❌ Error en {tool_call['name']}: {e}")
+                                error_result = {
+                                    'tool_name': tool_call['name'],
+                                    'query': tool_call.get('args', {}),
+                                    'result': f"Error: {e}"
+                                }
+                                iteration_results.append(error_result)
+                                all_tool_results.append(error_result)
+                        
+                        # Agregar los resultados de las herramientas a la conversación
+                        results_text = "\n".join([
+                            f"Resultado de {r['tool_name']}: {r['result']}"
+                            for r in iteration_results
+                        ])
+                        
+                        # Actualizar conversación con resultados
+                        current_conversation.append(Message(role="user", content=f"Resultados de herramientas: {results_text}"))
+                        
+                        # Preguntar al LLM si necesita más herramientas
+                        continue_prompt = (
+                            f"Basándote en los resultados anteriores, ¿necesitas ejecutar más herramientas para completar "
+                            f"la solicitud original del usuario: '{user_input}'? "
+                            f"Si necesitas más información, ejecuta las herramientas necesarias. "
+                            f"Si ya tienes suficiente información, responde directamente al usuario."
+                        )
+                        current_conversation.append(Message(role="user", content=continue_prompt))
+                        
+                    else:
+                        # No se usaron herramientas, el LLM considera que ya terminó
+                        print("✅ El agente considera completada la tarea")
+                        
+                        # Si no hay tool results, respuesta directa
+                        if not all_tool_results:
+                            return await self._stream_response(response.get('text', ''))
+                        
+                        # Si hay resultados, hacer síntesis final
+                        break
+                
+                # Si llegamos aquí, hacer síntesis final con todos los resultados
+                if all_tool_results:
+                    print(f"\n🧠 Procesando información de {len(all_tool_results)} herramientas ejecutadas...")
+                    return await self._synthesize_natural_response(user_input, all_tool_results)
+                else:
+                    # Sin herramientas ejecutadas, respuesta simple
+                    return await self._chat_without_mcp(user_input)
             
-            # Si no se usaron MCPs, respuesta directa
-            if not mcp_used:
-                return await self._stream_response(response.content)
-            
-            # Fase 2: Síntesis natural de la información recopilada
-            print("\n🧠 Procesando información y generando respuesta natural...")
-            return await self._synthesize_natural_response(user_input, tool_results)
+            else:
+                # Para Ollama, MCPs no están soportados actualmente sin Langchain
+                print("⚠️  MCPs no soportados con Ollama en esta implementación")
+                return await self._chat_without_mcp(user_input)
             
         except Exception as e:
             print(f"❌ Error en procesamiento MCP: {e}")
@@ -445,41 +431,33 @@ class AuraClient:
         synthesis_prompt = "".join(context_parts)
         
         # Crear nueva conversación temporal para la síntesis
-        synthesis_messages = [HumanMessage(content=synthesis_prompt)]
+        synthesis_messages = [Message(role="user", content=synthesis_prompt)]
         
         # Generar respuesta natural
         try:
             natural_response = ""
             
-            # Streaming de la respuesta sintetizada con TTS por oraciones
-            if self.voice_enabled and StreamingTTS:
-                streaming_tts = StreamingTTS()
-                if self.voice_synthesizer:
-                    streaming_tts.start(self.voice_synthesizer)
-                
-                for chunk in self.model.stream(synthesis_messages):
-                    if hasattr(chunk, 'content') and chunk.content:
-                        content = str(chunk.content) if chunk.content else ""
-                        natural_response += content
-                        print(content, end='', flush=True)
-                        
-                        if streaming_tts:
-                            streaming_tts.add_text(content)
-                
-                if streaming_tts:
-                    streaming_tts.finish()
-            else:
-                # Solo texto si no hay TTS
-                for chunk in self.model.stream(synthesis_messages):
-                    if hasattr(chunk, 'content') and chunk.content:
-                        content = chunk.content
-                        natural_response += content
-                        print(content, end='', flush=True)
+            # Crear callback para streaming con TTS
+            streaming_callback = StreamingCallback(
+                voice_enabled=self.voice_enabled
+            )
+            
+            # Streaming de la respuesta sintetizada
+            if self.model_type == "gemini" and self.gemini_client:
+                for chunk in self.gemini_client.stream(synthesis_messages, callback=streaming_callback.on_token):
+                    natural_response += chunk
+                streaming_callback.on_complete()
+            
+            elif self.model_type == "ollama" and self.ollama_client:
+                # Para Ollama, generar respuesta completa
+                response_text = self.ollama_client.generate(synthesis_messages)
+                natural_response = response_text
+                print(response_text, end='', flush=True)
             
             print()  # Nueva línea
             
             # Agregar la respuesta sintetizada al historial
-            self.conversation_history.append(AIMessage(content=natural_response))
+            self.conversation_history.append(Message(role="assistant", content=natural_response))
             return natural_response
             
         except Exception as e:
@@ -488,9 +466,7 @@ class AuraClient:
             fallback_response = f"Según la información encontrada: {tool_results[0]['result'][:500]}..."
             print(fallback_response)
             
-            # TTS post-output eliminado para evitar duplicación de audio
-            
-            self.conversation_history.append(AIMessage(content=fallback_response))
+            self.conversation_history.append(Message(role="assistant", content=fallback_response))
             return fallback_response
     
     async def _chat_without_mcp(self, user_input: str) -> str:
@@ -500,8 +476,28 @@ class AuraClient:
         print(f"🤖 Usando {self.model_type.upper()} sin herramientas MCP")
         
         try:
-            response = self.model.invoke(self.conversation_history)
-            return await self._stream_response(response.content)
+            if self.model_type == "gemini" and self.gemini_client:
+                # Crear callback para streaming con TTS
+                streaming_callback = StreamingCallback(
+                    voice_enabled=self.voice_enabled
+                )
+                
+                response_text = ""
+                for chunk in self.gemini_client.stream(self.conversation_history, callback=streaming_callback.on_token):
+                    response_text += chunk
+                
+                streaming_callback.on_complete()
+                print()  # Nueva línea
+                
+                self.conversation_history.append(Message(role="assistant", content=response_text))
+                return response_text
+            
+            elif self.model_type == "ollama" and self.ollama_client:
+                response_text = self.ollama_client.generate(self.conversation_history)
+                return await self._stream_response(response_text)
+            
+            else:
+                raise Exception(f"Cliente {self.model_type} no disponible")
             
         except Exception as e:
             print(f"❌ Error en chat simple: {e}")
@@ -518,7 +514,7 @@ class AuraClient:
             speak_async(content)
         
         print()  # Nueva línea
-        self.conversation_history.append(AIMessage(content=content))
+        self.conversation_history.append(Message(role="assistant", content=content))
         return content
 
     def add_allowed_directories_context(self, allowed_dirs: List[str]):
@@ -559,10 +555,19 @@ class AuraClient:
         )
         # Insertar justo después del mensaje de instrucciones original para mantener prioridad
         insert_index = 1 if len(self.conversation_history) >= 1 else 0
-        self.conversation_history.insert(insert_index, HumanMessage(content=extra_context))
+        self.conversation_history.insert(insert_index, Message(role="user", content=extra_context))
+    
+    async def cleanup(self):
+        """Limpia recursos, especialmente conexiones MCP"""
+        if self.mcp_client:
+            try:
+                await self.mcp_client.cleanup()
+                print("🧹 Conexiones MCP cerradas")
+            except Exception as e:
+                print(f"⚠️  Error cerrando conexiones MCP: {e}")
 
 # Alias para mantener compatibilidad con el código existente
-GeminiClient = AuraClient
+# Nota: No sobrescribir GeminiClient ya que es importado de gemini_client.py
 OllamaClient = AuraClient
 
  
