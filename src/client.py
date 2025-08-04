@@ -71,7 +71,7 @@ class SimpleAuraClient:
         
         # Sistema de memoria (historial de chat)
         self.chat_history: List[ChatMessage] = [
-            ChatMessage(role="user", content="Eres un asistente de IA llamado Aura")
+            ChatMessage(role="user", content="Eres Aura, asistente de IA. Para tareas complejas que requieran múltiples herramientas, sigue este proceso:\n\n1. ANÁLISIS: Identifica qué información necesitas\n2. PLAN: Define la secuencia de herramientas a usar\n3. EJECUCIÓN: Usa las herramientas en orden lógico\n4. SÍNTESIS: Combina resultados en respuesta clara\n\nSé directo y eficiente.")
         ]
         
         # Cliente MCP
@@ -281,7 +281,7 @@ class SimpleAuraClient:
     def clear_history(self):
         """Limpiar historial de chat manteniendo el system prompt"""
         self.chat_history = [
-            ChatMessage(role="user", content="Eres un asistente de IA llamado Aura")
+            ChatMessage(role="user", content="Eres Aura, asistente de IA. Para tareas complejas que requieran múltiples herramientas, sigue este proceso:\n\n1. ANÁLISIS: Identifica qué información necesitas\n2. PLAN: Define la secuencia de herramientas a usar\n3. EJECUCIÓN: Usa las herramientas en orden lógico\n4. SÍNTESIS: Combina resultados en respuesta clara\n\nSé directo y eficiente.")
         ]
         print("🗑️ Historial limpiado")
     
