@@ -122,6 +122,59 @@ class ObsidianMemoryServer {
                 }
             },
             {
+                name: "delete_note",
+                description: "Elimina una nota del Baúl de Obsidian.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        note_path: {
+                            type: "string",
+                            description: "Ruta de la nota a eliminar"
+                        },
+                        confirm: {
+                            type: "boolean",
+                            default: false,
+                            description: "Confirmación para eliminar (debe ser true)"
+                        }
+                    },
+                    required: ["note_path", "confirm"]
+                }
+            },
+            {
+                name: "delete_folder",
+                description: "Elimina una carpeta completa del Baúl de Obsidian (incluye todo su contenido).",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        folder_path: {
+                            type: "string",
+                            description: "Ruta de la carpeta a eliminar"
+                        },
+                        confirm: {
+                            type: "boolean",
+                            default: false,
+                            description: "Confirmación para eliminar (debe ser true)"
+                        }
+                    },
+                    required: ["folder_path", "confirm"]
+                }
+            },
+            {
+                name: "get_current_datetime",
+                description: "Obtiene la fecha y hora actual del sistema en zona horaria America/Bogotá.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        format: {
+                            type: "string",
+                            enum: ["iso", "readable", "date_only", "time_only"],
+                            default: "readable",
+                            description: "Formato de salida: iso (ISO 8601), readable (legible), date_only (solo fecha), time_only (solo hora)"
+                        }
+                    }
+                }
+            },
+            {
                 name: "get_note_metadata",
                 description: "Obtiene metadatos de una nota: tamaño, fecha de modificación, etiquetas encontradas, wikilinks.",
                 inputSchema: {
@@ -204,6 +257,12 @@ class ObsidianMemoryServer {
                 return await this.updateNote(args);
             case 'list_vault_structure':
                 return await this.listVaultStructure(args);
+            case 'delete_note':
+                return await this.deleteNote(args);
+            case 'delete_folder':
+                return await this.deleteFolder(args);
+            case 'get_current_datetime':
+                return await this.getCurrentDateTime(args);
             case 'get_note_metadata':
                 return await this.getNoteMetadata(args);
             default:
@@ -552,6 +611,140 @@ class ObsidianMemoryServer {
         });
 
         return output;
+    }
+
+    async deleteNote(args) {
+        const { note_path, confirm } = args;
+        
+        if (!note_path) {
+            throw new Error('Ruta de nota requerida');
+        }
+        
+        if (!confirm) {
+            throw new Error('Debes confirmar la eliminación estableciendo confirm=true');
+        }
+
+        const fullPath = path.join(this.vault_path, note_path);
+        
+        try {
+            // Verificar que existe
+            await fs.access(fullPath);
+            
+            // Eliminar archivo
+            await fs.unlink(fullPath);
+            
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `🗑️ Nota eliminada exitosamente:\n📄 **${path.basename(note_path)}**\n📂 Ruta: ${note_path}`
+                    }
+                ]
+            };
+        } catch (error) {
+            throw new Error(`Error eliminando la nota: ${error.message}`);
+        }
+    }
+
+    async deleteFolder(args) {
+        const { folder_path, confirm } = args;
+        
+        if (!folder_path) {
+            throw new Error('Ruta de carpeta requerida');
+        }
+        
+        if (!confirm) {
+            throw new Error('Debes confirmar la eliminación estableciendo confirm=true');
+        }
+
+        const fullPath = path.join(this.vault_path, folder_path);
+        
+        try {
+            // Verificar que existe y es directorio
+            const stats = await fs.stat(fullPath);
+            if (!stats.isDirectory()) {
+                throw new Error('La ruta especificada no es una carpeta');
+            }
+            
+            // Eliminar carpeta recursivamente
+            await fs.rmdir(fullPath, { recursive: true });
+            
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `🗑️ Carpeta eliminada exitosamente:\n📁 **${path.basename(folder_path)}**\n📂 Ruta: ${folder_path}`
+                    }
+                ]
+            };
+        } catch (error) {
+            throw new Error(`Error eliminando la carpeta: ${error.message}`);
+        }
+    }
+
+    async getCurrentDateTime(args) {
+        const { format = "readable" } = args;
+        
+        try {
+            const now = new Date();
+            
+            // Configurar zona horaria America/Bogotá
+            const options = {
+                timeZone: 'America/Bogota',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            };
+            
+            let formattedDateTime;
+            
+            switch (format) {
+                case 'iso':
+                    // ISO 8601 en zona horaria local
+                    formattedDateTime = now.toLocaleString('sv-SE', options).replace(' ', 'T') + '-05:00';
+                    break;
+                case 'readable':
+                    formattedDateTime = now.toLocaleString('es-CO', {
+                        ...options,
+                        weekday: 'long',
+                        month: 'long'
+                    });
+                    break;
+                case 'date_only':
+                    formattedDateTime = now.toLocaleDateString('es-CO', {
+                        timeZone: 'America/Bogota',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        weekday: 'long'
+                    });
+                    break;
+                case 'time_only':
+                    formattedDateTime = now.toLocaleTimeString('es-CO', {
+                        timeZone: 'America/Bogota',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                    break;
+                default:
+                    formattedDateTime = now.toLocaleString('es-CO', options);
+            }
+            
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `🕐 Fecha y hora actual (America/Bogotá):\n${formattedDateTime}`
+                    }
+                ]
+            };
+        } catch (error) {
+            throw new Error(`Error obteniendo la fecha/hora: ${error.message}`);
+        }
     }
 
     async getNoteMetadata(args) {

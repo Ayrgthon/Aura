@@ -10,33 +10,8 @@ from client import SimpleAuraClient
 
 
 def get_mcp_config():
-    """Configuración simple de MCP con filesystem y Brave Search"""
-    home_dir = os.path.expanduser("~")
-    
-    # Directorios permitidos
-    allowed_dirs = []
-    possible_dirs = [
-        f"{home_dir}/Documents",
-        f"{home_dir}/Documentos", 
-        f"{home_dir}/Desktop",
-        f"{home_dir}/Downloads",
-        f"{home_dir}/Descargas"
-    ]
-    
-    for dir_path in possible_dirs:
-        if os.path.exists(dir_path):
-            allowed_dirs.append(dir_path)
-    
+    """Configuración simple de MCP con Brave Search y Obsidian"""
     config = {}
-    
-    # Filesystem MCP
-    if allowed_dirs:
-        config["filesystem"] = {
-            "command": "npx",
-            "args": ["-y", "@modelcontextprotocol/server-filesystem"] + allowed_dirs,
-            "transport": "stdio"
-        }
-        print(f"📁 Filesystem MCP: {len(allowed_dirs)} directorios")
     
     # Brave Search MCP
     brave_api_key = os.getenv("BRAVE_API_KEY")
@@ -48,6 +23,17 @@ def get_mcp_config():
             "env": {"BRAVE_API_KEY": brave_api_key}
         }
         print("🔍 Brave Search MCP configurado")
+    
+    # Obsidian Memory MCP (servidor personalizado local)
+    obsidian_vault = os.getenv("OBSIDIAN_VAULT_PATH", "/home/ary/Documents/Ary Vault")
+    if os.path.exists(obsidian_vault):
+        config["obsidian-memory"] = {
+            "command": "node",
+            "args": ["mcp/obsidian_memory_server.js"],
+            "transport": "stdio",
+            "env": {"OBSIDIAN_VAULT_PATH": obsidian_vault}
+        }
+        print(f"🗃️ Obsidian Memory MCP configurado: {obsidian_vault}")
     
     return config
 
