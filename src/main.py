@@ -9,6 +9,33 @@ import asyncio
 from client import SimpleAuraClient
 
 
+def get_model_choice():
+    """Menú para seleccionar modelo Gemini"""
+    models = {
+        "1": "gemini-2.5-pro",
+        "2": "gemini-2.5-flash", 
+        "3": "gemini-2.5-flash-lite",
+        "4": "gemini-2.0-flash",
+        "5": "gemini-2.0-flash-lite"
+    }
+    
+    print("🤖 Selecciona el modelo Gemini:")
+    print("1. gemini-2.5-pro")
+    print("2. gemini-2.5-flash")
+    print("3. gemini-2.5-flash-lite") 
+    print("4. gemini-2.0-flash")
+    print("5. gemini-2.0-flash-lite")
+    
+    while True:
+        choice = input("\n👉 Elige (1-5): ").strip()
+        if choice in models:
+            selected_model = models[choice]
+            print(f"✅ Modelo seleccionado: {selected_model}")
+            return selected_model
+        else:
+            print("❌ Opción inválida. Elige entre 1-5.")
+
+
 def get_mcp_config():
     """Configuración simple de MCP con Brave Search y Obsidian"""
     config = {}
@@ -43,9 +70,12 @@ async def main():
     print("🌟 AURA - Cliente Simplificado")
     print("=" * 40)
     
-    # Crear cliente
+    # Seleccionar modelo
+    selected_model = get_model_choice()
+    
+    # Crear cliente con modelo seleccionado
     try:
-        client = SimpleAuraClient()
+        client = SimpleAuraClient(model_name=selected_model)
     except Exception as e:
         print(f"❌ Error inicializando cliente: {e}")
         return 1
