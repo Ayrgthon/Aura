@@ -37,19 +37,19 @@ def get_model_choice():
 
 
 def get_mcp_config():
-    """Configuración simple de MCP con Brave Search y Obsidian"""
+    """Configuración simple de MCP con Serpapi y Obsidian"""
     config = {}
     
-    # Brave Search MCP
-    brave_api_key = os.getenv("BRAVE_API_KEY")
-    if brave_api_key:
-        config["brave-search"] = {
-            "command": "npx",
-            "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+    # Serpapi MCP (servidor local personalizado)
+    serpapi_api_key = os.getenv("SERPAPI_API_KEY")
+    if serpapi_api_key:
+        config["serpapi"] = {
+            "command": "node",
+            "args": ["mcp/serpapi_server.js"],
             "transport": "stdio",
-            "env": {"BRAVE_API_KEY": brave_api_key}
+            "env": {"SERPAPI_API_KEY": serpapi_api_key}
         }
-        print("🔍 Brave Search MCP configurado")
+        print("🔍 Serpapi MCP configurado")
     
     # Obsidian Memory MCP (servidor personalizado local)
     obsidian_vault = os.getenv("OBSIDIAN_VAULT_PATH", "/home/ary/Documents/Ary Vault")
