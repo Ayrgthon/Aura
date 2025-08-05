@@ -62,6 +62,17 @@ def get_mcp_config():
         }
         print(f"🗃️ Obsidian Memory MCP configurado: {obsidian_vault}")
     
+    # Personal Assistant MCP (servidor personalizado local para tareas diarias)
+    daily_path = os.getenv("DAILY_PATH", "/home/ary/Documents/Ary Vault/Daily")
+    if os.path.exists(daily_path):
+        config["personal-assistant"] = {
+            "command": "node",
+            "args": ["mcp/personal_assistant_server.js"],
+            "transport": "stdio",
+            "env": {"DAILY_PATH": daily_path}
+        }
+        print(f"📋 Personal Assistant MCP configurado: {daily_path}")
+    
     return config
 
 
