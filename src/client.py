@@ -49,11 +49,12 @@ class ChatMessage:
 class SimpleAuraClient:
     """Cliente Aura simplificado"""
     
-    def __init__(self, model_name: str = "gemini-2.5-pro"):
+    def __init__(self, model_name: str = "gemini-2.5-pro", debug_mode: bool = False):
         if not GEMINI_AVAILABLE:
             raise Exception("Gemini no disponible")
         
         self.model_name = model_name
+        self.debug_mode = debug_mode
         
         # Configuración de seguridad permisiva
         self.safety_settings = {
@@ -80,6 +81,11 @@ class SimpleAuraClient:
         
         print(f"✅ Cliente Aura simplificado inicializado: {self.model_name}")
     
+    def _debug_log(self, message: str):
+        """Imprime mensaje solo si debug_mode está activado"""
+        if self.debug_mode:
+            print(message)
+    
     async def setup_mcp(self, mcp_configs: Dict[str, Dict] = None) -> bool:
         """Configurar servidores MCP"""
         if not MCP_AVAILABLE:
@@ -91,12 +97,12 @@ class SimpleAuraClient:
             
             if success:
                 self.mcp_tools = self.mcp_client.tools
-                print(f"✅ MCP configurado: {len(self.mcp_tools)} herramientas")
+                self._debug_log(f"✅ MCP configurado: {len(self.mcp_tools)} herramientas")
                 return True
             return False
             
         except Exception as e:
-            print(f"❌ Error configurando MCP: {e}")
+            self._debug_log(f"❌ Error configurando MCP: {e}")
             return False
     
     def _convert_to_gemini_format(self, messages: List[ChatMessage]) -> List[Dict[str, Any]]:
@@ -222,8 +228,8 @@ class SimpleAuraClient:
             
             while iteration < max_iterations:
                 iteration += 1
-                print(f"🔄 Evaluando si necesita más herramientas (ronda {iteration}/{max_iterations})")
-                print(f"📊 Herramientas ejecutadas hasta ahora: {[tool['name'] for tool in executed_tools]}")
+                self._debug_log(f"🔄 Evaluando si necesita más herramientas (ronda {iteration}/{max_iterations})")
+                self._debug_log(f"📊 Herramientas ejecutadas hasta ahora: {[tool['name'] for tool in executed_tools]}")
                 
                 # Prompt mejorado para finalización con contexto
                 self.chat_history.append(ChatMessage(
@@ -269,7 +275,7 @@ class SimpleAuraClient:
                     if text_response.strip() and not tool_calls:
                         # Verificar si es realmente una respuesta final
                         if self._is_final_response(text_response, user_message, executed_tools):
-                            print("📝 Respuesta final detectada (contenido completo)")
+                            self._debug_log("📝 Respuesta final detectada (contenido completo)")
                             return text_response
                     
                     # Si hay herramientas, validar que no sean duplicadas
@@ -279,7 +285,7 @@ class SimpleAuraClient:
                             await self._execute_tools_sequential_with_tracking(new_tools, executed_tools)
                             continue
                         else:
-                            print("⚠️ Todas las herramientas ya fueron ejecutadas, generando respuesta final")
+                            self._debug_log("⚠️ Todas las herramientas ya fueron ejecutadas, generando respuesta final")
                             break
                     
                     # Si hay texto final, devolver respuesta
@@ -289,8 +295,8 @@ class SimpleAuraClient:
                 # Si no hay herramientas ni texto, salir
                 break
             
-            print(f"🏁 Límite de iteraciones alcanzado ({max_iterations}), generando síntesis final")
-            print(f"📋 Herramientas ejecutadas en total: {len(executed_tools)}")
+            self._debug_log(f"🏁 Límite de iteraciones alcanzado ({max_iterations}), generando síntesis final")
+            self._debug_log(f"📋 Herramientas ejecutadas en total: {len(executed_tools)}")
             # Generar síntesis final si el loop termina sin respuesta clara
             return await self._synthesize_response(user_message, executed_tools)
             
@@ -350,12 +356,12 @@ class SimpleAuraClient:
             if "start_date" in validated_args:
                 # Si el usuario dice "hoy" o similar, asegurar fecha correcta
                 # Por ahora, registramos para debugging
-                print(f"🔍 Validando fecha en edit_task: {validated_args['start_date']}")
+                self._debug_log(f"🔍 Validando fecha en edit_task: {validated_args['start_date']}")
             
             # Validar formato de hora
             if "time" in validated_args:
                 time_str = validated_args["time"]
-                print(f"🕐 Validando hora en edit_task: {time_str}")
+                self._debug_log(f"🕐 Validando hora en edit_task: {time_str}")
         
         return validated_args
 
@@ -363,11 +369,11 @@ class SimpleAuraClient:
         """Ejecuta herramientas secuencialmente con tracking y logging detallado"""
         for tool_call in tool_calls:
             try:
-                print(f"🔧 Ejecutando: {tool_call['name']}")
+                self._debug_log(f"🔧 Ejecutando: {tool_call['name']}")
                 
                 # Validar argumentos antes de ejecutar
                 validated_args = self._validate_and_fix_tool_args(tool_call['name'], tool_call['args'])
-                print(f"📋 Argumentos MCP: {validated_args}")
+                self._debug_log(f"📋 Argumentos MCP: {validated_args}")
                 
                 result = await self.mcp_client.execute_tool(tool_call['name'], validated_args)
                 
@@ -384,11 +390,11 @@ class SimpleAuraClient:
                     content=f"Herramienta {tool_call['name']} ejecutada: {result[:500]}..."
                 ))
                 
-                print(f"✅ {tool_call['name']} completado")
-                print(f"📊 Resultado (primeros 200 chars): {result[:200]}...")
+                self._debug_log(f"✅ {tool_call['name']} completado")
+                self._debug_log(f"📊 Resultado (primeros 200 chars): {result[:200]}...")
                 
             except Exception as e:
-                print(f"❌ Error en {tool_call['name']}: {e}")
+                self._debug_log(f"❌ Error en {tool_call['name']}: {e}")
                 executed_tools.append({
                     'name': tool_call['name'],
                     'args': tool_call.get('args', {}),
@@ -403,7 +409,7 @@ class SimpleAuraClient:
         """Ejecuta herramientas secuencialmente y agrega resultados al historial"""
         for tool_call in tool_calls:
             try:
-                print(f"🔧 Ejecutando: {tool_call['name']}")
+                self._debug_log(f"🔧 Ejecutando: {tool_call['name']}")
                 result = await self.mcp_client.execute_tool(tool_call['name'], tool_call['args'])
                 
                 # Agregar resultado al historial
@@ -412,10 +418,10 @@ class SimpleAuraClient:
                     content=f"Herramienta {tool_call['name']} ejecutada: {result[:500]}..."
                 ))
                 
-                print(f"✅ {tool_call['name']} completado")
+                self._debug_log(f"✅ {tool_call['name']} completado")
                 
             except Exception as e:
-                print(f"❌ Error en {tool_call['name']}: {e}")
+                self._debug_log(f"❌ Error en {tool_call['name']}: {e}")
                 self.chat_history.append(ChatMessage(
                     role="assistant", 
                     content=f"Error ejecutando {tool_call['name']}: {e}"
@@ -428,7 +434,7 @@ class SimpleAuraClient:
         # Ejecutar cada herramienta
         for tool_call in tool_calls:
             try:
-                print(f"🔧 Ejecutando: {tool_call['name']}")
+                self._debug_log(f"🔧 Ejecutando: {tool_call['name']}")
                 result = await self.mcp_client.execute_tool(tool_call['name'], tool_call['args'])
                 
                 tool_result = {
@@ -444,10 +450,10 @@ class SimpleAuraClient:
                     content=f"Herramienta {tool_call['name']} ejecutada: {result[:500]}..."
                 ))
                 
-                print(f"✅ {tool_call['name']} completado")
+                self._debug_log(f"✅ {tool_call['name']} completado")
                 
             except Exception as e:
-                print(f"❌ Error en {tool_call['name']}: {e}")
+                self._debug_log(f"❌ Error en {tool_call['name']}: {e}")
                 error_result = {
                     'tool_name': tool_call['name'],
                     'query': tool_call['args'],
@@ -490,7 +496,7 @@ class SimpleAuraClient:
             response = self.model.generate_content(synthesis_prompt)
             return response.text
         except Exception as e:
-            print(f"❌ Error en síntesis: {e}")
+            self._debug_log(f"❌ Error en síntesis: {e}")
             # Respuesta de fallback más robusta
             if tool_results and len(tool_results) > 0:
                 first_result = tool_results[0]
@@ -503,13 +509,13 @@ class SimpleAuraClient:
         self.chat_history = [
             ChatMessage(role="user", content="Eres Aura, asistente de IA especializado en análisis temporal y tareas. REGLAS CRÍTICAS: 1) SIEMPRE obtén y verifica la hora/fecha actual usando herramientas antes de hacer afirmaciones sobre tiempo. 2) Cuando evalúes si algo es 'futuro' o 'pasado', calcula correctamente basándote en la hora actual obtenida. 3) Para fechas, usa el formato correcto del día actual, no fechas anteriores. 4) Analiza cada solicitud completamente y ejecuta todas las herramientas necesarias para completar la tarea completa. 5) No termines tu respuesta hasta haber completado todos los aspectos de la solicitud.")
         ]
-        print("🗑️ Historial limpiado")
+        self._debug_log("🗑️ Historial limpiado")
     
     async def cleanup(self):
         """Limpiar recursos"""
         if self.mcp_client:
             try:
                 await self.mcp_client.cleanup()
-                print("🧹 Recursos MCP limpiados")
+                self._debug_log("🧹 Recursos MCP limpiados")
             except Exception as e:
-                print(f"⚠️ Error limpiando MCP: {e}")
+                self._debug_log(f"⚠️ Error limpiando MCP: {e}")

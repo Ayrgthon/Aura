@@ -36,7 +36,25 @@ def get_model_choice():
             print("❌ Opción inválida. Elige entre 1-5.")
 
 
-def get_mcp_config():
+def get_debug_mode():
+    """Menú para seleccionar modo de debug"""
+    print("🔧 Selecciona el modo de funcionamiento:")
+    print("1. Modo Debug (con logs detallados)")
+    print("2. Modo Producción (sin logs innecesarios)")
+    
+    while True:
+        choice = input("\n👉 Elige (1-2): ").strip()
+        if choice == "1":
+            print("✅ Modo Debug activado")
+            return True
+        elif choice == "2":
+            print("✅ Modo Producción activado")
+            return False
+        else:
+            print("❌ Opción inválida. Elige entre 1-2.")
+
+
+def get_mcp_config(debug_mode: bool = False):
     """Configuración simple de MCP con Serpapi y Obsidian"""
     config = {}
     
@@ -49,7 +67,8 @@ def get_mcp_config():
             "transport": "stdio",
             "env": {"SERPAPI_API_KEY": serpapi_api_key}
         }
-        print("🔍 Serpapi MCP configurado")
+        if debug_mode:
+            print("🔍 Serpapi MCP configurado")
     
     # Obsidian Memory MCP (servidor personalizado local)
     obsidian_vault = os.getenv("OBSIDIAN_VAULT_PATH", "/home/ary/Documents/Ary Vault")
@@ -60,7 +79,8 @@ def get_mcp_config():
             "transport": "stdio",
             "env": {"OBSIDIAN_VAULT_PATH": obsidian_vault}
         }
-        print(f"🗃️ Obsidian Memory MCP configurado: {obsidian_vault}")
+        if debug_mode:
+            print(f"🗃️ Obsidian Memory MCP configurado: {obsidian_vault}")
     
     # Personal Assistant MCP (servidor personalizado local para tareas diarias)
     daily_path = os.getenv("DAILY_PATH", "/home/ary/Documents/Ary Vault/Daily")
@@ -71,7 +91,8 @@ def get_mcp_config():
             "transport": "stdio",
             "env": {"DAILY_PATH": daily_path}
         }
-        print(f"📋 Personal Assistant MCP configurado: {daily_path}")
+        if debug_mode:
+            print(f"📋 Personal Assistant MCP configurado: {daily_path}")
     
     return config
 
@@ -81,20 +102,25 @@ async def main():
     print("🌟 AURA - Cliente Simplificado")
     print("=" * 40)
     
+    # Seleccionar modo debug
+    debug_mode = get_debug_mode()
+    print()
+    
     # Seleccionar modelo
     selected_model = get_model_choice()
     
-    # Crear cliente con modelo seleccionado
+    # Crear cliente con modelo seleccionado y modo debug
     try:
-        client = SimpleAuraClient(model_name=selected_model)
+        client = SimpleAuraClient(model_name=selected_model, debug_mode=debug_mode)
     except Exception as e:
         print(f"❌ Error inicializando cliente: {e}")
         return 1
     
     # Configurar MCP
-    mcp_config = get_mcp_config()
+    mcp_config = get_mcp_config(debug_mode)
     if mcp_config:
-        print("🔧 Configurando MCP...")
+        if debug_mode:
+            print("🔧 Configurando MCP...")
         await client.setup_mcp(mcp_config)
     
     # Loop interactivo
