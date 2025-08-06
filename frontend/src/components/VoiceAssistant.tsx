@@ -20,6 +20,7 @@ const VoiceAssistant = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [lastRecognizedText, setLastRecognizedText] = useState<string>('');
   const [lastResponse, setLastResponse] = useState<string>('');
+  const [liveTranscription, setLiveTranscription] = useState<string>(''); // Para mostrar transcripción en vivo
   const [isAuraReady, setIsAuraReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -212,6 +213,12 @@ const VoiceAssistant = () => {
           
         case 'speech_recognized':
           setLastRecognizedText(message.text);
+          setLiveTranscription(''); // Limpiar transcripción en vivo
+          break;
+          
+        case 'speech_partial_accumulated':
+        case 'speech_partial_live':
+          setLiveTranscription(message.text);
           break;
           
         case 'voice_ready':
@@ -325,12 +332,19 @@ const VoiceAssistant = () => {
       return;
     }
 
+    console.log('🎤 Toggle listening - Estado actual:', isListening);
+
     if (isListening) {
-      // Detener escucha
+      // SEGUNDO CLICK: Detener escucha y enviar mensaje
+      console.log('🛑 Deteniendo escucha y enviando mensaje...');
       sendMessage({ type: 'stop_listening' });
+      setLiveTranscription(''); // Limpiar transcripción en vivo
     } else {
-      // Iniciar escucha
+      // PRIMER CLICK: Iniciar escucha
+      console.log('🎤 Iniciando escucha...');
       sendMessage({ type: 'start_listening' });
+      setLastRecognizedText(''); // Limpiar texto anterior
+      setLastResponse(''); // Limpiar respuesta anterior
     }
   };
 
@@ -552,6 +566,18 @@ const VoiceAssistant = () => {
                     Aura: {isAuraReady ? '✅ Listo' : '⏳ Inicializando...'}
                   </div>
                 </div>
+                {/* Mostrar transcripción en vivo mientras escucha */}
+                {isListening && liveTranscription && (
+                  <div className="text-xs p-2 rounded bg-cyan-500/10 border border-cyan-500/30 mt-2" style={{flexShrink: 0, wordWrap: 'break-word', overflowWrap: 'break-word', boxSizing: 'border-box', maxWidth: '100%'}}>
+                    <div className="text-cyan-400 font-medium mb-1 flex items-center gap-1">
+                      <span className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></span>
+                      Escuchando en vivo...
+                    </div>
+                    <div className="text-cyan-200/80" style={{wordWrap: 'break-word', overflowWrap: 'break-word', maxWidth: '100%', boxSizing: 'border-box'}}>{liveTranscription}</div>
+                  </div>
+                )}
+                
+                {/* Mostrar texto reconocido final */}
                 {lastRecognizedText && (
                   <div className="text-xs p-2 rounded bg-white/5 border border-white/10 mt-2" style={{flexShrink: 0, wordWrap: 'break-word', overflowWrap: 'break-word', boxSizing: 'border-box', maxWidth: '100%'}}>
                     <div className="text-blue-400 font-medium mb-1">
@@ -780,10 +806,10 @@ const VoiceAssistant = () => {
               </Button>
               <div className="text-center">
                 <div className="text-xs text-white/80">
-                  {isListening ? "Listening..." : (isStreaming || isSpeaking) ? "Speaking..." : "Say something"}
+                  {isListening ? "Escuchando..." : (isStreaming || isSpeaking) ? "Hablando..." : "Presiona para hablar"}
                 </div>
                 <div className="text-xs text-white/60 mt-1">
-                  {isListening ? "Touch to stop" : "Touch to activate"}
+                  {isListening ? "Presiona para ENVIAR mensaje" : "Presiona para INICIAR escucha"}
                 </div>
               </div>
             </div>
