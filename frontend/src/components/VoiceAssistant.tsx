@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, MicOff, Volume2, Cloud, Wifi, Clock, Music, Cpu, Monitor, MemoryStick, HardDrive, Calendar, Info, Mic as MicIcon, Settings } from 'lucide-react';
+import { Mic, MicOff, Volume2, Cloud, Wifi, Clock, Music, Cpu, Monitor, MemoryStick, HardDrive, Calendar, Info, Mic as MicIcon, Settings, Power, PowerOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import EnergyOrb from './EnergyOrb';
@@ -620,7 +620,13 @@ const VoiceAssistant = () => {
                   boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
                 }}
               >
-                {isShuttingDown ? '⏳' : isSystemOn ? '🔋' : '⚡'}
+{isShuttingDown ? (
+                  <div className="animate-spin">⏳</div>
+                ) : isSystemOn ? (
+                  <PowerOff className="w-5 h-5" style={{color: 'rgb(239, 68, 68)', filter: 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.6))'}} />
+                ) : (
+                  <Power className="w-5 h-5" style={{color: 'rgb(34, 197, 94)', filter: 'drop-shadow(0 0 8px rgba(34, 197, 94, 0.6))'}} />
+                )}
               </Button>
             </div>
             
