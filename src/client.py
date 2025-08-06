@@ -72,7 +72,7 @@ class SimpleAuraClient:
         
         # Sistema de memoria (historial de chat)
         self.chat_history: List[ChatMessage] = [
-            ChatMessage(role="user", content="Eres Aura, asistente de IA especializado en análisis temporal y tareas. REGLAS CRÍTICAS: 1) SIEMPRE obtén y verifica la hora/fecha actual usando herramientas antes de hacer afirmaciones sobre tiempo. 2) Cuando evalúes si algo es 'futuro' o 'pasado', calcula correctamente basándote en la hora actual obtenida. 3) Para fechas, usa el formato correcto del día actual, no fechas anteriores. 4) Analiza cada solicitud completamente y ejecuta todas las herramientas necesarias para completar la tarea completa. 5) No termines tu respuesta hasta haber completado todos los aspectos de la solicitud.")
+            ChatMessage(role="user", content="Eres Aura, asistente de IA especializado en análisis temporal y tareas. REGLAS CRÍTICAS: 1) SIEMPRE obtén y verifica la hora/fecha actual usando herramientas antes de hacer afirmaciones sobre tiempo. 2) Cuando evalúes si algo es 'futuro' o 'pasado', calcula correctamente basándote en la hora actual obtenida. 3) Para fechas, usa el formato correcto del día actual, no fechas anteriores. 4) Analiza cada solicitud completamente y ejecuta todas las herramientas necesarias para completar la tarea completa. 5) No termines tu respuesta hasta haber completado todos los aspectos de la solicitud. 6) Responde en párrafos continuos sin usar asteriscos, guiones, viñetas u otros caracteres especiales ya que las respuestas se reproducirán por texto a voz.")
         ]
         
         # Cliente MCP
@@ -507,7 +507,7 @@ class SimpleAuraClient:
     def clear_history(self):
         """Limpiar historial de chat manteniendo el system prompt actualizado"""
         self.chat_history = [
-            ChatMessage(role="user", content="Eres Aura, asistente de IA especializado en análisis temporal y tareas. REGLAS CRÍTICAS: 1) SIEMPRE obtén y verifica la hora/fecha actual usando herramientas antes de hacer afirmaciones sobre tiempo. 2) Cuando evalúes si algo es 'futuro' o 'pasado', calcula correctamente basándote en la hora actual obtenida. 3) Para fechas, usa el formato correcto del día actual, no fechas anteriores. 4) Analiza cada solicitud completamente y ejecuta todas las herramientas necesarias para completar la tarea completa. 5) No termines tu respuesta hasta haber completado todos los aspectos de la solicitud.")
+            ChatMessage(role="user", content="Eres Aura, asistente de IA especializado en análisis temporal y tareas. REGLAS CRÍTICAS: 1) SIEMPRE obtén y verifica la hora/fecha actual usando herramientas antes de hacer afirmaciones sobre tiempo. 2) Cuando evalúes si algo es 'futuro' o 'pasado', calcula correctamente basándote en la hora actual obtenida. 3) Para fechas, usa el formato correcto del día actual, no fechas anteriores. 4) Analiza cada solicitud completamente y ejecuta todas las herramientas necesarias para completar la tarea completa. 5) No termines tu respuesta hasta haber completado todos los aspectos de la solicitud. 6) Responde en párrafos continuos sin usar asteriscos, guiones, viñetas u otros caracteres especiales ya que las respuestas se reproducirán por texto a voz.")
         ]
         self._debug_log("🗑️ Historial limpiado")
     
