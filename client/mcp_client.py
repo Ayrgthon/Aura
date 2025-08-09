@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Cliente MCP nativo usando la librería oficial de Python
-Reemplaza langchain-mcp-adapters
+MCP Client Simple
+Cliente MCP optimizado para manejar múltiples servidores
 """
 
 import asyncio
@@ -9,7 +9,6 @@ import logging
 import json
 from typing import Dict, List, Any, Optional
 from contextlib import AsyncExitStack
-from pathlib import Path
 
 try:
     from mcp import ClientSession, StdioServerParameters
@@ -17,7 +16,6 @@ try:
     MCP_AVAILABLE = True
 except ImportError as e:
     print(f"⚠️  MCP SDK no disponible: {e}")
-    print("💡 Instala con: pip install mcp")
     MCP_AVAILABLE = False
 
 
@@ -32,24 +30,30 @@ class MCPTool:
         return f"MCPTool(name='{self.name}', description='{self.description[:50]}...')"
 
 
-class NativeMCPClient:
-    """Cliente MCP nativo usando la librería oficial"""
+class SimpleMCPClient:
+    """Cliente MCP simplificado para múltiples servidores"""
     
-    def __init__(self):
+    def __init__(self, debug: bool = False):
         self.servers = {}
         self.tools = []
         self.exit_stack = None
         self.initialized = False
+        self.debug = debug
+        
+        # Configurar logging
+        if debug:
+            logging.basicConfig(level=logging.DEBUG)
+        self.logger = logging.getLogger(__name__)
     
-    async def setup_servers(self, mcp_configs: Dict[str, Dict]) -> bool:
+    async def connect_to_servers(self, server_configs: Dict[str, Dict]) -> bool:
         """
-        Configura servidores MCP usando la librería oficial
+        Conecta a múltiples servidores MCP
         
         Args:
-            mcp_configs: Configuración de servidores MCP
+            server_configs: Diccionario con configuraciones de servidores
             
         Returns:
-            True si se configuró exitosamente
+            True si se conectó a al menos un servidor
         """
         if not MCP_AVAILABLE:
             print("❌ MCP SDK no está disponible")
@@ -57,91 +61,76 @@ class NativeMCPClient:
         
         try:
             self.exit_stack = AsyncExitStack()
+            connected_count = 0
             
-            for server_name, config in mcp_configs.items():
-                print(f"🔧 Configurando servidor MCP: {server_name}")
-                
-                # Configurar parámetros del servidor
-                if config.get("transport") == "stdio":
+            for server_name, config in server_configs.items():
+                try:
+                    if self.debug:
+                        print(f"🔧 Conectando a servidor MCP: {server_name}")
+                    
+                    # Configurar parámetros del servidor
                     command = config.get("command")
                     args = config.get("args", [])
                     env = config.get("env", {})
                     
-                    if command == "npx":
-                        # Para servidores de Node.js
-                        server_params = StdioServerParameters(
-                            command=command,
-                            args=args,
-                            env=env
-                        )
-                    elif command == "node":
-                        # Para servidores JavaScript locales
-                        server_params = StdioServerParameters(
-                            command=command,
-                            args=args,
-                            env=env
-                        )
-                    else:
-                        print(f"⚠️  Comando no soportado: {command}")
-                        continue
+                    server_params = StdioServerParameters(
+                        command=command,
+                        args=args,
+                        env=env
+                    )
                     
                     # Conectar al servidor
-                    try:
-                        # Usar el patrón correcto según la documentación oficial de MCP
-                        read_stream, write_stream = await self.exit_stack.enter_async_context(
-                            stdio_client(server_params)
+                    read_stream, write_stream = await self.exit_stack.enter_async_context(
+                        stdio_client(server_params)
+                    )
+                    
+                    # Crear sesión de cliente
+                    session = await self.exit_stack.enter_async_context(
+                        ClientSession(read_stream, write_stream)
+                    )
+                    
+                    # Inicializar sesión
+                    await session.initialize()
+                    
+                    # Obtener herramientas disponibles
+                    list_tools_result = await session.list_tools()
+                    
+                    # Procesar herramientas
+                    server_tools = []
+                    for tool in list_tools_result.tools:
+                        mcp_tool = MCPTool(
+                            name=tool.name,
+                            description=tool.description or "",
+                            input_schema=tool.inputSchema or {}
                         )
+                        server_tools.append(mcp_tool)
+                        self.tools.append(mcp_tool)
+                    
+                    # Guardar referencia del servidor
+                    self.servers[server_name] = {
+                        'session': session,
+                        'tools': server_tools
+                    }
+                    
+                    connected_count += 1
+                    if self.debug:
+                        print(f"✅ {server_name}: {len(server_tools)} herramientas")
                         
-                        # Crear sesión de cliente
-                        session = await self.exit_stack.enter_async_context(
-                            ClientSession(read_stream, write_stream)
-                        )
-                        
-                        # Inicializar sesión
-                        await session.initialize()
-                        
-                        # Obtener herramientas disponibles
-                        list_tools_result = await session.list_tools()
-                        
-                        # Procesar herramientas
-                        server_tools = []
-                        for tool in list_tools_result.tools:
-                            mcp_tool = MCPTool(
-                                name=tool.name,
-                                description=tool.description or "",
-                                input_schema=tool.inputSchema or {}
-                            )
-                            server_tools.append(mcp_tool)
-                            self.tools.append(mcp_tool)
-                        
-                        # Guardar referencia del servidor
-                        self.servers[server_name] = {
-                            'session': session,
-                            'tools': server_tools
-                        }
-                        
-                        print(f"✅ {server_name} conectado - {len(server_tools)} herramientas disponibles")
-                        
-                    except Exception as e:
-                        print(f"❌ Error conectando a {server_name}: {e}")
-                        continue
-                        
-                else:
-                    print(f"⚠️  Transport no soportado: {config.get('transport')}")
+                except Exception as e:
+                    print(f"❌ Error conectando a {server_name}: {e}")
                     continue
             
-            if self.servers:
+            if connected_count > 0:
                 self.initialized = True
-                print(f"✅ MCPs configurados correctamente. {len(self.tools)} herramientas totales disponibles:")
-                for tool in self.tools:
-                    print(f"  - {tool.name}: {tool.description}")
+                print(f"✅ Conectado a {connected_count} servidores MCP")
+                print(f"🛠️  Total herramientas disponibles: {len(self.tools)}")
                 return True
             else:
-                print("❌ No se pudo configurar ningún servidor MCP")
+                print("❌ No se pudo conectar a ningún servidor MCP")
                 return False
                 
         except Exception as e:
-            print(f"❌ Error configurando servidores MCP: {e}")
+            print(f"❌ Error en conexión MCP: {e}")
             return False
     
     async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> str:
@@ -153,7 +142,7 @@ class NativeMCPClient:
             arguments: Argumentos para la herramienta
             
         Returns:
-            Resultado de la herramienta
+            Resultado de la herramienta como string
         """
         if not self.initialized:
             raise Exception("Cliente MCP no inicializado")
@@ -199,7 +188,7 @@ class NativeMCPClient:
                 return "Herramienta ejecutada sin resultado"
                 
         except Exception as e:
-            raise Exception(f"Error ejecutando herramienta '{tool_name}': {e}")
+            raise Exception(f"Error ejecutando '{tool_name}': {e}")
     
     def get_tools_for_gemini(self) -> List[Dict[str, Any]]:
         """
@@ -217,10 +206,9 @@ class NativeMCPClient:
             try:
                 # Verificar que la herramienta tiene los campos necesarios
                 if not tool or not hasattr(tool, 'name') or not tool.name:
-                    print(f"⚠️  Herramienta inválida omitida: {tool}")
                     continue
                 
-                # Limpiar el schema para Gemini (remover campos no soportados)
+                # Limpiar el schema para Gemini
                 clean_schema = self._clean_schema_for_gemini(tool.input_schema)
                 
                 function_declaration = {
@@ -235,7 +223,7 @@ class NativeMCPClient:
                 print(f"⚠️  Error procesando herramienta {getattr(tool, 'name', 'desconocida')}: {e}")
                 continue
         
-        # Gemini espera una sola lista de function_declarations
+        # Gemini espera una lista de herramientas con function_declarations
         return [{
             "function_declarations": function_declarations
         }]
@@ -243,6 +231,7 @@ class NativeMCPClient:
     def _clean_schema_for_gemini(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """
         Limpia el schema JSON para hacerlo compatible con Gemini
+        Remueve campos problemáticos como 'minimum', 'maximum', 'format'
         
         Args:
             schema: Schema original de MCP
@@ -251,21 +240,20 @@ class NativeMCPClient:
             Schema limpio compatible con Gemini
         """
         if not schema or not isinstance(schema, dict):
-            # Si el schema es None o vacío, devolver un schema básico
             return {"type": "object", "properties": {}}
         
         # Crear copia para no modificar el original
         clean_schema = {}
         
-        # Campos permitidos por Gemini
+        # Campos permitidos por Gemini (conservadores para compatibilidad)
         allowed_fields = {
             "type", "properties", "required", "items", "enum", 
-            "description", "format", "minimum", "maximum"
+            "description"
         }
         
         for key, value in schema.items():
             if value is None:
-                continue  # Saltar valores None
+                continue
                 
             if key in allowed_fields:
                 if key == "properties" and isinstance(value, dict):
@@ -291,12 +279,17 @@ class NativeMCPClient:
         
         return clean_schema
     
+    def get_tool_names(self) -> List[str]:
+        """Retorna lista de nombres de herramientas disponibles"""
+        return [tool.name for tool in self.tools]
+    
     async def cleanup(self):
         """Limpia recursos y cierra conexiones"""
         if self.exit_stack:
             try:
                 await self.exit_stack.aclose()
-                print("🧹 Recursos MCP limpiados")
+                if self.debug:
+                    print("🧹 Recursos MCP limpiados")
             except Exception as e:
                 print(f"⚠️  Error limpiando recursos MCP: {e}")
         
@@ -307,34 +300,11 @@ class NativeMCPClient:
     def __del__(self):
         """Destructor para limpiar recursos"""
         if self.exit_stack:
-            # Crear un nuevo loop si no existe uno
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    # Si el loop está corriendo, programar la limpieza
                     loop.create_task(self.cleanup())
                 else:
-                    # Si no está corriendo, ejecutar directamente
                     loop.run_until_complete(self.cleanup())
             except RuntimeError:
-                # No hay loop, crear uno nuevo
                 asyncio.run(self.cleanup())
-
-
-class MCPToolCall:
-    """Representa una llamada a herramienta MCP para compatibilidad"""
-    def __init__(self, name: str, args: Dict[str, Any]):
-        self.name = name
-        self.args = args
-    
-    def __repr__(self):
-        return f"MCPToolCall(name='{self.name}', args={self.args})"
-
-
-def create_mcp_client() -> NativeMCPClient:
-    """Factory function para crear un cliente MCP nativo"""
-    return NativeMCPClient()
-
-
-# Alias para compatibilidad con el código existente
-MultiServerMCPClient = NativeMCPClient
