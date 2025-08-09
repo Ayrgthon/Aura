@@ -18,6 +18,11 @@ def get_mcp_servers_config() -> Dict[str, Dict[str, Any]]:
     Returns:
         Diccionario con configuraciones de servidores MCP
     """
+    # Obtener el directorio base del proyecto (padre de client/)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_dir = os.path.dirname(current_dir)  # Un nivel arriba desde client/
+    mcp_dir = os.path.join(project_dir, "mcp")
+    
     config = {}
     
     # Serpapi MCP (servidor local personalizado)
@@ -25,7 +30,7 @@ def get_mcp_servers_config() -> Dict[str, Dict[str, Any]]:
     if serpapi_api_key:
         config["serpapi"] = {
             "command": "node",
-            "args": ["mcp/serpapi_server.js"],
+            "args": [os.path.join(mcp_dir, "serpapi_server.js")],
             "env": {"SERPAPI_API_KEY": serpapi_api_key}
         }
     
@@ -34,7 +39,7 @@ def get_mcp_servers_config() -> Dict[str, Dict[str, Any]]:
     if os.path.exists(obsidian_vault):
         config["obsidian-memory"] = {
             "command": "node",
-            "args": ["mcp/obsidian_memory_server.js"],
+            "args": [os.path.join(mcp_dir, "obsidian_memory_server.js")],
             "env": {"OBSIDIAN_VAULT_PATH": obsidian_vault}
         }
     
@@ -43,7 +48,7 @@ def get_mcp_servers_config() -> Dict[str, Dict[str, Any]]:
     if os.path.exists(daily_path):
         config["personal-assistant"] = {
             "command": "node",
-            "args": ["mcp/personal_assistant_server.js"],
+            "args": [os.path.join(mcp_dir, "personal_assistant_server.js")],
             "env": {"DAILY_PATH": daily_path}
         }
     

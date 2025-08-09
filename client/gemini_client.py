@@ -21,8 +21,8 @@ try:
     import google.generativeai as genai
     from google.generativeai.types import HarmCategory, HarmBlockThreshold
     GEMINI_AVAILABLE = True
-except ImportError:
-    print("❌ google-generativeai no disponible")
+except ImportError as e:
+    print(f"❌ google-generativeai no disponible: {e}")
     GEMINI_AVAILABLE = False
 
 from mcp_client import SimpleMCPClient
@@ -77,7 +77,7 @@ class SimpleGeminiClient:
         self.chat_history: List[ChatMessage] = [
             ChatMessage(
                 role="user", 
-                content="Eres Aura, un asistente de IA. Para tareas complejas o que requieran múltiples pasos, usa la herramienta sequential_thinking para planificar primero, luego ejecuta TODAS las herramientas necesarias para completar la tarea completamente. Responde de forma directa y útil."
+                content="Eres Aura, un asistente de IA autónomo. IMPORTANTE: 1) Para tareas complejas o múltiples herramientas, usa primero 'sequentialthinking' para planificar, luego ejecuta TODAS las herramientas necesarias. 2) Para investigación, gestión de notas, o tareas de planificación, SIEMPRE usa 'get_current_datetime' primero para obtener contexto temporal relevante. 3) No te detengas hasta completar todos los pasos planificados. Responde de forma directa y útil."
             )
         ]
         
@@ -128,6 +128,7 @@ class SimpleGeminiClient:
             gemini_history = [msg.to_gemini_format() for msg in self.chat_history]
             
             # Configurar chat con historial
+            chat_session = None
             if len(gemini_history) > 1:
                 # Usar historial previo
                 chat_session = self.model.start_chat(
@@ -145,17 +146,18 @@ class SimpleGeminiClient:
                         gemini_history[-1]['parts'][0]
                     )
             else:
-                # Primera interacción
+                # Primera interacción - necesitamos crear sesión para múltiples function calls
+                chat_session = self.model.start_chat()
                 if tools:
-                    response = self.model.generate_content(
+                    response = chat_session.send_message(
                         user_message,
                         tools=tools
                     )
                 else:
-                    response = self.model.generate_content(user_message)
+                    response = chat_session.send_message(user_message)
             
-            # Procesar respuesta
-            final_response = await self._process_response(response)
+            # Procesar respuesta con sesión para permitir múltiples iteraciones
+            final_response = await self._process_response(response, chat_session)
             
             # Agregar respuesta al historial
             self.chat_history.append(ChatMessage(role="model", content=final_response))
@@ -172,71 +174,120 @@ class SimpleGeminiClient:
             self.chat_history.append(ChatMessage(role="model", content=error_msg))
             return error_msg
     
-    async def _process_response(self, response) -> str:
+    async def _process_response(self, response, chat_session=None) -> str:
         """
-        Procesa la respuesta de Gemini, ejecutando function calls si es necesario
+        Procesa la respuesta de Gemini, ejecutando function calls iterativamente
         
         Args:
             response: Respuesta de Gemini
+            chat_session: Sesión de chat para continuar la conversación
             
         Returns:
             Respuesta final procesada
         """
-        if not response.candidates:
-            return "No se pudo generar respuesta"
+        max_iterations = 10  # Prevenir bucles infinitos
+        iteration = 0
         
-        candidate = response.candidates[0]
+        current_response = response
         
-        # Verificar si hay function calls
-        function_calls = []
-        text_parts = []
-        
-        if candidate.content and candidate.content.parts:
-            for part in candidate.content.parts:
-                if hasattr(part, 'function_call') and part.function_call:
-                    function_calls.append(part.function_call)
-                elif hasattr(part, 'text') and part.text:
-                    text_parts.append(part.text)
-        
-        # Si no hay function calls, retornar texto directamente
-        if not function_calls:
-            return "".join(text_parts) if text_parts else "No se pudo generar respuesta"
-        
-        # Ejecutar function calls
-        function_results = []
-        for func_call in function_calls:
+        while iteration < max_iterations:
+            iteration += 1
+            
+            if not current_response.candidates:
+                return "No se pudo generar respuesta"
+            
+            candidate = current_response.candidates[0]
+            
+            # Verificar si hay function calls
+            function_calls = []
+            text_parts = []
+            
+            if candidate.content and candidate.content.parts:
+                for part in candidate.content.parts:
+                    if hasattr(part, 'function_call') and part.function_call:
+                        function_calls.append(part.function_call)
+                    elif hasattr(part, 'text') and part.text:
+                        text_parts.append(part.text)
+            
+            # Si no hay function calls, retornar texto final
+            if not function_calls:
+                final_text = "".join(text_parts) if text_parts else "Tarea completada"
+                if self.debug and iteration > 1:
+                    print(f"🏁 Proceso completado después de {iteration-1} iteraciones")
+                return final_text
+            
+            if self.debug:
+                print(f"🔄 Iteración {iteration}: Ejecutando {len(function_calls)} herramientas")
+            
+            # Ejecutar function calls y crear respuestas para Gemini
+            function_responses = []
+            for func_call in function_calls:
+                try:
+                    if self.debug:
+                        print(f"🔧 Ejecutando: {func_call.name}")
+                        print(f"📋 Argumentos: {dict(func_call.args) if func_call.args else {}}")
+                    
+                    # Ejecutar herramienta MCP
+                    result = await self.mcp_client.execute_tool(
+                        func_call.name,
+                        dict(func_call.args) if func_call.args else {}
+                    )
+                    
+                    # Crear respuesta en formato que Gemini espera
+                    function_responses.append({
+                        "function_response": {
+                            "name": func_call.name,
+                            "response": result
+                        }
+                    })
+                    
+                    if self.debug:
+                        print(f"✅ {func_call.name} completado")
+                        print(f"📊 Resultado (primeros 200 chars): {result[:200]}...")
+                    
+                except Exception as e:
+                    error_result = f"Error en {func_call.name}: {e}"
+                    function_responses.append({
+                        "function_response": {
+                            "name": func_call.name,
+                            "response": error_result
+                        }
+                    })
+                    
+                    if self.debug:
+                        print(f"❌ Error en {func_call.name}: {e}")
+            
+            # Si no hay sesión de chat, no podemos continuar
+            if not chat_session:
+                # Fallback: generar respuesta final
+                return await self._generate_final_response(function_responses, "".join(text_parts))
+            
+            # Continuar la conversación con los resultados
             try:
-                if self.debug:
-                    print(f"🔧 Ejecutando: {func_call.name}")
-                    print(f"📋 Argumentos: {dict(func_call.args) if func_call.args else {}}")
+                # Crear un mensaje de texto con los resultados
+                results_text = "Resultados de las herramientas:\n\n"
+                for func_resp in function_responses:
+                    name = func_resp["function_response"]["name"]
+                    response = func_resp["function_response"]["response"]
+                    results_text += f"**{name}**: {response}\n\n"
                 
-                # Ejecutar herramienta MCP
-                result = await self.mcp_client.execute_tool(
-                    func_call.name,
-                    dict(func_call.args) if func_call.args else {}
-                )
-                
-                function_results.append({
-                    "name": func_call.name,
-                    "result": result
-                })
-                
-                if self.debug:
-                    print(f"✅ {func_call.name} completado")
-                    print(f"📊 Resultado (primeros 200 chars): {result[:200]}...")
-                
+                if self.tools_available:
+                    tools = self.mcp_client.get_tools_for_gemini()
+                    current_response = chat_session.send_message(
+                        results_text,
+                        tools=tools
+                    )
+                else:
+                    current_response = chat_session.send_message(results_text)
             except Exception as e:
-                error_result = f"Error en {func_call.name}: {e}"
-                function_results.append({
-                    "name": func_call.name,
-                    "result": error_result
-                })
-                
                 if self.debug:
-                    print(f"❌ Error en {func_call.name}: {e}")
+                    print(f"❌ Error continuando conversación: {e}")
+                # Fallback: generar respuesta final
+                return await self._generate_final_response(function_responses, "".join(text_parts))
         
-        # Generar respuesta final basada en los resultados
-        return await self._generate_final_response(function_results, "".join(text_parts))
+        if self.debug:
+            print(f"⚠️ Alcanzado límite máximo de iteraciones ({max_iterations})")
+        return "Proceso completado (límite de iteraciones alcanzado)"
     
     async def _generate_final_response(self, function_results: List[Dict], initial_text: str = "") -> str:
         """
