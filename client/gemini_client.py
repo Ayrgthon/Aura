@@ -185,7 +185,7 @@ class SimpleGeminiClient:
         Returns:
             Respuesta final procesada
         """
-        max_iterations = 10  # Prevenir bucles infinitos
+        max_iterations = 15  # Aumentar límite para aprovechar context window de 1M tokens
         iteration = 0
         
         current_response = response
@@ -205,7 +205,15 @@ class SimpleGeminiClient:
             if candidate.content and candidate.content.parts:
                 for part in candidate.content.parts:
                     if hasattr(part, 'function_call') and part.function_call:
-                        function_calls.append(part.function_call)
+                        # Validar que el function call tenga los campos necesarios
+                        func_call = part.function_call
+                        if hasattr(func_call, 'name') and func_call.name:
+                            function_calls.append(func_call)
+                        else:
+                            if self.debug:
+                                print(f"⚠️ Function call malformado detectado - será manejado como error")
+                            # Marcar que hay un function call malformado
+                            function_calls.append({"malformed": True, "error": "Function call malformado"})
                     elif hasattr(part, 'text') and part.text:
                         text_parts.append(part.text)
             
@@ -218,11 +226,25 @@ class SimpleGeminiClient:
             
             if self.debug:
                 print(f"🔄 Iteración {iteration}: Ejecutando {len(function_calls)} herramientas")
+                if len(text_parts) > 0:
+                    print(f"📝 Texto adicional: {' '.join(text_parts)[:100]}...")
             
             # Ejecutar function calls y crear respuestas para Gemini
             function_responses = []
             for func_call in function_calls:
                 try:
+                    # Manejar function calls malformados
+                    if isinstance(func_call, dict) and func_call.get("malformed"):
+                        function_responses.append({
+                            "function_response": {
+                                "name": "system_error",
+                                "response": f"Error: {func_call.get('error', 'Function call malformado')}. Por favor reintenta la herramienta con el formato correcto."
+                            }
+                        })
+                        if self.debug:
+                            print(f"⚠️ Manejando function call malformado como error")
+                        continue
+                    
                     if self.debug:
                         print(f"🔧 Ejecutando: {func_call.name}")
                         print(f"📋 Argumentos: {dict(func_call.args) if func_call.args else {}}")
