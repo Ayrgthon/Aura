@@ -64,6 +64,7 @@ class TTSQueueItem:
     thought_number: Optional[int] = None
     total_thoughts: Optional[int] = None
     priority: int = 0  # 0 = alta prioridad
+    speed_multiplier: float = 1.0  # Multiplicador de velocidad para este item
 
 class TTSBuffer:
     """Buffer para reproducción secuencial de TTS"""
@@ -75,6 +76,24 @@ class TTSBuffer:
         self.current_item = None
         self.executor = ThreadPoolExecutor(max_workers=2)
         self.processing_task = None
+        self.should_stop = False  # Flag para interrupción
+        self.current_thread = None  # Referencia al hilo actual de TTS
+        self.played_items = []  # Lista de items reproducidos completamente
+        
+    def get_completed_context(self) -> List[str]:
+        """Obtiene el contexto de lo que realmente se reprodujo completamente"""
+        context = []
+        for item in self.played_items:
+            if item.item_type == 'thought':
+                context.append(f"Pensamiento {item.thought_number}: {item.content}")
+            elif item.item_type == 'response':
+                context.append(f"Respuesta: {item.content}")
+        return context
+    
+    def clear_played_history(self):
+        """Limpia el historial de items reproducidos"""
+        self.played_items.clear()
+        logger.info("🧹 Historial de reproducciones limpiado")
         
     async def add_item(self, item: TTSQueueItem):
         """Añade item al buffer"""
@@ -92,20 +111,32 @@ class TTSBuffer:
                 # Esperar siguiente item
                 item = await asyncio.wait_for(self.queue.get(), timeout=1.0)
                 
+                # Verificar si debe parar antes de procesar
+                if self.should_stop:
+                    break
+                
                 self.is_playing = True
                 self.current_item = item
                 
-                logger.info(f"🎵 Reproduciendo: {item.item_type} - {item.content[:50]}...")
+                logger.info(f"🎵 Reproduciendo: {item.item_type} - {item.content[:50]}... (velocidad: {item.speed_multiplier}x)")
                 
-                # Ejecutar TTS en hilo separado
+                # Ejecutar TTS en hilo separado con velocidad específica
                 loop = asyncio.get_event_loop()
                 await loop.run_in_executor(
                     self.executor,
-                    self.tts.speak,
-                    item.content
+                    self._speak_with_speed,
+                    item.content,
+                    item.speed_multiplier
                 )
                 
-                logger.info(f"✅ Completado: {item.item_type}")
+                # Solo marcar como completado si no fue interrumpido
+                if not self.should_stop:
+                    logger.info(f"✅ Completado: {item.item_type}")
+                    # Guardar item completado para tracking del contexto
+                    self.played_items.append(item)
+                else:
+                    logger.info(f"🔇 Interrumpido: {item.item_type}")
+                    break
                 
                 self.current_item = None
                 self.queue.task_done()
@@ -114,16 +145,125 @@ class TTSBuffer:
                 # No hay más items, pausar procesamiento
                 self.is_playing = False
                 break
+            except asyncio.CancelledError:
+                logger.info("🔇 Tarea de TTS cancelada")
+                self.is_playing = False
+                break
             except Exception as e:
                 logger.error(f"❌ Error en TTS buffer: {e}")
                 self.is_playing = False
                 
+    def _speak_with_speed(self, text: str, speed_multiplier: float):
+        """Habla con velocidad específica usando edge-tts"""
+        if speed_multiplier != 1.0:
+            # Calcular rate para edge-tts (formato: "+50%" o "-20%")
+            if speed_multiplier >= 2.0:
+                rate_percent = "+100%"  # Muy rápido
+            elif speed_multiplier >= 1.8:
+                rate_percent = "+80%"   # Rápido
+            elif speed_multiplier >= 1.5:
+                rate_percent = "+50%"   # Medio-rápido
+            elif speed_multiplier >= 1.2:
+                rate_percent = "+30%"   # Un poco más rápido
+            else:
+                rate_percent = "+0%"    # Normal
+            
+            # Usar el método speak_with_rate personalizado
+            self._speak_edge_tts_with_rate(text, rate_percent)
+        else:
+            # Velocidad normal
+            self.tts.speak(text)
+    
+    def _speak_edge_tts_with_rate(self, text: str, rate: str):
+        """Método personalizado e interrumpible para hablar con rate específico"""
+        import edge_tts
+        import pygame
+        import tempfile
+        import asyncio
+        import threading
+        import os
+        
+        def run_edge_tts():
+            try:
+                # Verificar si debe parar antes de empezar
+                if self.should_stop:
+                    return
+                
+                async def _edge_speak():
+                    communicate = edge_tts.Communicate(text, self.tts.voice, rate=rate)
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as fp:
+                        await communicate.save(fp.name)
+                        return fp.name
+                
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                audio_file = loop.run_until_complete(_edge_speak())
+                loop.close()
+                
+                # Verificar si debe parar antes de reproducir
+                if self.should_stop:
+                    os.unlink(audio_file)
+                    return
+                
+                pygame.mixer.music.load(audio_file)
+                pygame.mixer.music.play()
+                
+                # Loop interrumpible
+                while pygame.mixer.music.get_busy() and not self.should_stop:
+                    pygame.time.wait(50)  # Check más frecuente
+                
+                # Si fue interrumpido, parar inmediatamente
+                if self.should_stop:
+                    pygame.mixer.music.stop()
+                    
+                os.unlink(audio_file)
+                
+            except Exception as e:
+                logger.error(f"Error en TTS interrumpible: {e}")
+        
+        thread = threading.Thread(target=run_edge_tts)
+        self.current_thread = thread  # Guardar referencia
+        thread.start()
+        thread.join()
+    
     def clear_queue(self):
-        """Limpia la cola TTS"""
-        # Crear nueva cola para limpiar
+        """Limpia la cola TTS y detiene reproducción actual agresivamente"""
+        logger.info("🛑 INTERRUPCIÓN TOTAL DE TTS - Parando todo")
+        
+        # 1. Activar flag de parada
+        self.should_stop = True
+        
+        # 2. Detener pygame inmediatamente
+        try:
+            import pygame
+            if pygame.mixer.music.get_busy():
+                pygame.mixer.music.stop()
+                logger.info("🔇 Pygame mixer detenido")
+        except Exception as e:
+            logger.debug(f"Error deteniendo pygame: {e}")
+        
+        # 3. Crear nueva cola (limpia pendientes)
         old_queue = self.queue
         self.queue = asyncio.Queue()
-        logger.info("🧹 Buffer TTS limpiado")
+        
+        # 4. Marcar como no reproduciendo
+        self.is_playing = False
+        
+        # 5. Guardar último item reproducido para contexto
+        if self.current_item:
+            # Solo guardar si se completó (no interrumpido a medias)
+            if not self.should_stop:
+                self.played_items.append(self.current_item)
+            self.current_item = None
+        
+        # 6. Cancelar tarea de procesamiento si existe
+        if self.processing_task and not self.processing_task.done():
+            self.processing_task.cancel()
+        
+        # 7. Resetear flag para próximas reproducciones
+        self.should_stop = False
+        
+        logger.info("🧹 Buffer TTS COMPLETAMENTE limpiado con interrupción total")
         
     def get_status(self) -> Dict[str, Any]:
         """Estado actual del buffer"""
@@ -196,6 +336,10 @@ class AuraWebSocketServer:
         
         # Control de sistema
         self.system_on = True
+        
+        # Contexto limitado por TTS
+        self.last_complete_response = None  # Último response completamente reproducido
+        self.pending_context = []  # Contexto generado pero no reproducido
         
         logger.info(f"🚀 Servidor Aura WebSocket inicializado en {host}:{port}")
     
@@ -365,21 +509,26 @@ class AuraWebSocketServer:
             })
     
     async def start_listening(self, client_id: str):
-        """Iniciar escucha de voz"""
+        """Iniciar escucha de voz - INTERRUMPE TTS INMEDIATAMENTE"""
         logger.info(f"🎤 Iniciando escucha para {client_id}")
+        
+        # 🛑 INTERRUPCIÓN INMEDIATA - En cuanto el usuario habla, para todo
+        if self.tts_buffer:
+            self.tts_buffer.clear_queue()
+            self._update_conversation_context()
+            logger.info("🔇 TTS interrumpido por nueva voz del usuario")
         
         async with self.listening_lock:
             if self.is_listening:
                 logger.warning("Ya está escuchando")
                 return False
-                
-            if self.is_speaking:
-                logger.warning("No puede escuchar: sistema hablando")
-                return False
             
             if not self.stt or not self.voice_initialized:
                 logger.error("Sistema de voz no inicializado")
                 return False
+            
+            # Ya no verificamos is_speaking porque lo interrumpimos arriba
+            self.is_speaking = False  # Forzar como no hablando
             
             self.is_listening = True
             if client_id in self.clients:
@@ -555,9 +704,12 @@ class AuraWebSocketServer:
                 })
                 return
             
-            # Limpiar buffer TTS antes de nuevo procesamiento
+            # 🧹 LIMPIAR BUFFER TTS - Nueva consulta cancela TTS anterior
             if self.tts_buffer:
                 self.tts_buffer.clear_queue()
+                # Actualizar contexto basado en lo que se reprodujo antes de limpiar
+                self._update_conversation_context()
+                logger.info("🧹 Buffer TTS limpiado para nueva consulta")
             
             await self.send_to_client(client_id, {
                 'type': 'status',
@@ -735,18 +887,67 @@ class AuraWebSocketServer:
                     'timestamp': time.time()
                 })
                 
-                # Añadir pensamiento al buffer TTS
+                # Añadir pensamiento al buffer TTS con velocidad aumentada
                 if self.tts_buffer:
                     await self.tts_buffer.add_item(TTSQueueItem(
                         id=str(uuid.uuid4()),
                         content=thought_content,
                         item_type='thought',
                         thought_number=int(thought_number),
-                        total_thoughts=int(total_thoughts)
+                        total_thoughts=int(total_thoughts),
+                        speed_multiplier=1.8  # Más rápido para pensamientos
                     ))
                 
         except Exception as e:
             logger.error(f"Error manejando sequential thinking: {e}")
+    
+    def _update_conversation_context(self):
+        """Actualiza el contexto de la conversación basado en TTS completado"""
+        if not self.tts_buffer:
+            return
+            
+        # Obtener lo que realmente se reprodujo
+        completed_context = self.tts_buffer.get_completed_context()
+        
+        if completed_context:
+            # Construir respuesta completa de lo reproducido
+            response_parts = []
+            for context_item in completed_context:
+                if context_item.startswith("Pensamiento"):
+                    # Extraer solo el contenido del pensamiento
+                    thought_content = context_item.split(": ", 1)[1] if ": " in context_item else context_item
+                    response_parts.append(thought_content)
+                elif context_item.startswith("Respuesta"):
+                    # Extraer contenido de respuesta
+                    response_content = context_item.split(": ", 1)[1] if ": " in context_item else context_item
+                    response_parts.append(response_content)
+            
+            if response_parts:
+                # Unir todo lo reproducido como última respuesta válida
+                self.last_complete_response = " ".join(response_parts)
+                logger.info(f"💾 Contexto actualizado hasta: '{self.last_complete_response[:100]}...'")
+                
+                # Actualizar historial del cliente Gemini para que solo incluya lo reproducido
+                if self.gemini_client and hasattr(self.gemini_client, 'chat_history'):
+                    # Modificar la última respuesta del modelo en el historial
+                    if len(self.gemini_client.chat_history) > 1:
+                        # Reemplazar última respuesta con lo que realmente se reprodujo
+                        from gemini_client import ChatMessage
+                        self.gemini_client.chat_history[-1] = ChatMessage(
+                            role="model", 
+                            content=self.last_complete_response
+                        )
+                        logger.info("🔄 Historial de Gemini actualizado con contexto reproducido")
+    
+    def get_context_status(self) -> Dict[str, Any]:
+        """Obtiene estado del contexto para debugging"""
+        context_info = {
+            'last_complete_response_length': len(self.last_complete_response) if self.last_complete_response else 0,
+            'tts_buffer_status': self.tts_buffer.get_status() if self.tts_buffer else None,
+            'completed_items_count': len(self.tts_buffer.played_items) if self.tts_buffer else 0,
+            'gemini_history_length': len(self.gemini_client.chat_history) if self.gemini_client else 0
+        }
+        return context_info
     
     async def create_webrtc_connection(self, client_id: str):
         """Crear conexión WebRTC para audio de alta calidad"""
