@@ -205,10 +205,7 @@ def shutdown_system():
         
         # Matar procesos específicos de Aura (excepto esta API para poder recibir comandos de encendido)
         processes_to_kill = [
-            "websocket_server_simple.py",
-            "websocket_server.py",
             "aura_websocket_server.py",
-            "integration_optimized.py",
             "python main.py"
         ]
         

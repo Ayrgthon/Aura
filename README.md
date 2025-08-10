@@ -1,340 +1,425 @@
-# 🌟 Aura - Universal AI Assistant with Voice
+# 🌟 Aura - Advanced AI Assistant with Voice & Sequential Thinking
 
-Aura is an advanced artificial intelligence assistant that combines natural language processing, voice synthesis, and extended capabilities through the Model Context Protocol (MCP). It supports multiple AI models including Google Gemini and Ollama.
+Aura es un asistente de inteligencia artificial de última generación que integra un** cliente** con capacidades avanzadas de voz, razonamiento secuencial, y herramientas especializadas através del **Model Context Protocol (MCP)**. Cuenta con un frontend futurista, procesamiento de audio en tiempo real, y integración completa con servicios como Google Workspace, Obsidian, y APIs web.
 
-## 🚀 Key Features
+## 🚀 Características Principales
 
-- **🗣️ Voice Interface**: Spanish voice recognition and synthesis
-- **🤖 Multiple Models**: Support for Google Gemini and Ollama
-- **🔧 Model Context Protocol (MCP)**: Integration with external tools
-- **🌐 Web Interface**: Modern frontend with React and Vite
-- **📊 System Monitoring**: Real-time statistics visualization
-- **🔄 WebSocket**: Real-time communication between frontend and backend
+### 🎯 **Core Features**
+- **🧠 Sequential Thinking**: Razonamiento paso a paso visible con reproducción TTS sincronizada
+- **🗣️ Procesamiento de Audio Avanzado**: WebRTC con cancelación de eco y supresión de ruido
+- **🤖 Ollama & Gemini Clients**: Integración nativa con function calls iterativos 
+- **⚡ Buffer TTS Inteligente**: Reproducción secuencial con interrupciones inmediatas
+- **🌐 Frontend Futurista**: React + TypeScript con animaciones hardware-accelerated
 
-## 📋 Requirements
+### 🛠️ **Herramientas MCP Integradas**
+- **🔍 SerpAPI**: Búsquedas web completas (Google, News, Images)
+- **🗃️ Obsidian Memory**: Sistema de notas con búsqueda semántica
+- **📅 Google Workspace**: Calendar completo, Gmail, análisis de productividad
+- **🧠 Sequential Thinking**: Servidor oficial de Anthropic para razonamiento estructurado
 
-- Python 3.8+
-- Node.js 16+
-- npm or yarn
-- Arch Linux (recommended) or any Linux distribution
+### 💡 **Capacidades Técnicas**
+- **🎵 Animaciones Sincronizadas**: EnergyOrb que responde al estado de audio en tiempo real
+- **📊 Monitoreo del Sistema**: CPU, GPU (AMD), RAM, SSD con APIs optimizadas
+- **🌤️ Integración Meteorológica**: API Open-Meteo para datos del clima
+- **🔄 WebSocket Optimizado**: Comunicación bidireccional con reconexión automática
 
-## 🛠️ Installation
+## 📋 Requisitos del Sistema
 
-### 1. Clone the repository
+- **Python 3.8+** con asyncio
+- **Node.js 16+** para MCP servers y frontend
+- **Linux** (recomendado Arch Linux para GPU AMD)
+- **Micrófono** para reconocimiento de voz
+- **Conectividad a Internet** para APIs
+
+## 🛠️ Instalación Rápida
+
+### 1. Clonar y Configurar
 
 ```bash
-git clone <your-repository>
-cd Aura_Ollama
-```
-
-### 2. Configure environment variables
-
-```bash
+git clone <tu-repositorio>
+cd Aura
 cp env.template .env
 ```
 
-Edit the `.env` file and configure your API keys:
+### 2. Configurar Variables de Entorno
+
+Edita el archivo `.env` con tus credenciales:
 
 ```env
-# Google Gemini API
-GOOGLE_API_KEY=your_google_api_key
+# Google Gemini (REQUERIDO)
+GOOGLE_API_KEY=tu_google_api_key
 
-# Brave Search API  
-BRAVE_API_KEY=your_brave_api_key
+# SerpAPI para búsquedas web (REQUERIDO)
+SERPAPI_API_KEY=tu_serpapi_api_key
 
-# ElevenLabs API (for premium voice synthesis)
-ELEVENLABS_API_KEY=your_elevenlabs_api_key
+# Obsidian Vault (OPCIONAL)
+OBSIDIAN_VAULT_PATH=/home/ary/Documents/Ary Vault
 
-# Obsidian Vault path (optional)
-OBSIDIAN_VAULT_PATH=/path/to/your/vault
+# Google Workspace (OPCIONAL)
+GOOGLE_CREDENTIALS_PATH=./credentials.json
+GOOGLE_TOKEN_PATH=./token.json
+
+# ElevenLabs TTS Premium (OPCIONAL)
+ELEVENLABS_API_KEY=tu_elevenlabs_api_key
 ```
 
-### 3. Install dependencies
+### 3. Instalar Dependencias
 
-#### Backend (Python)
 ```bash
+# Backend Python
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-```
 
-#### Frontend (Node.js)
-```bash
-cd frontend
-npm install
-cd ..
-```
+# Frontend React
+cd frontend && npm install && cd ..
 
-#### MCP Dependencies
-```bash
+# MCP Dependencies
 npm install
 ```
 
-### 4. Start the project
+### 4. Inicializar Sistema
 
 ```bash
-./start.sh
+# Opción 1: Scripts automatizados
+./scripts/start_aura.sh
+
+# Opción 2: Manual
+python src/system_stats_api.py &    # API estadísticas (puerto 8000)
+python src/aura_websocket_server.py & # WebSocket server (puerto 8766) 
+cd frontend && npm run dev          # Frontend React (puerto 5173)
 ```
 
-The script will automatically start:
-- System statistics API (port 8000)
-- WebSocket server (port 8765)
-- React frontend (port 5173)
+## 🎮 Uso del Sistema
 
-## 🎮 Usage
+### 🌐 **Interfaz Web Principal**
 
-### Web Interface
+1. **Acceder**: `http://localhost:5173`
+2. **Configurar Modelo**: Botón ⚙️ para seleccionar Gemini 2.5 Pro/Flash o modelos Ollama
+3. **Interacción por Voz**: 
+   - **Primer click**: Iniciar escucha (transcripción en vivo)
+   - **Segundo click**: Procesar con Aura
+4. **Monitoreo Visual**: Paneles de clima, sistema, estado de Aura
 
-1. Open your browser at `http://localhost:5173`
-2. Click the microphone button to speak
-3. The assistant will process your request and respond by voice
+### 🎯 **Características de la Interfaz**
 
-### Terminal Interface
+#### **EnergyOrb Central**
+- **Azul**: Estado normal/escuchando
+- **Rojo + Ondas**: Hablando/reproduciendo TTS
+- **Escala dinámica**: Responde a estados de audio
+- **Efectos 3D**: Glassmorphism con perspectiva hardware-accelerated
 
-You can also run Aura directly from the terminal:
+#### **Paneles de Información**
+- **WEATHER**: Datos en tiempo real de Barranquilla (Open-Meteo API)
+- **AURA STATUS**: Estado de conexión WebSocket y cliente Gemini
+- **SISTEMA**: CPU, GPU AMD, RAM, SSD en tiempo real
+- **VOICE RECOGNITION**: Transcripción en vivo y respuestas
 
-```bash
-cd src
-python main.py
+#### **Sequential Thinking Visual**
+- **Notificaciones**: Cada pensamiento aparece como toast notification
+- **TTS Acelerado**: Pensamientos se reproducen a 1.8x velocidad
+- **Progreso**: "💭 Pensamiento 3/7: Análisis de la consulta..."
+
+## 🧠 Funcionamiento del Sequential Thinking
+
+### **Flujo de Razonamiento**
+1. **Usuario habla**: "¿Cuál es la mejor estrategia para aprender IA?"
+2. **Detección automática**: Aura identifica complejidad y activa Sequential Thinking
+3. **Pensamientos secuenciales**:
+   - 💭 **Pensamiento 1/5**: Analizando los diferentes campos de la IA...
+   - 💭 **Pensamiento 2/5**: Considerando recursos de aprendizaje disponibles...
+   - 💭 **Pensamiento 3/5**: Evaluando progresión de habilidades técnicas...
+4. **TTS Sincronizado**: Cada pensamiento se reproduce mientras se genera el siguiente
+5. **Respuesta final**: Síntesis completa con plan detallado
+
+### **Características Técnicas**
+- **Interceptación automática**: Monkey patching del cliente Gemini
+- **Buffer inteligente**: Queue asyncio con interrupciones
+- **Velocidades dinámicas**: 1.8x para pensamientos, 1.0x para respuestas
+- **Context tracking**: Solo se incluye en historial lo que se reprodujo completamente
+
+## 🔧 Herramientas MCP en Detalle
+
+### 🔍 **SerpAPI Server**
+```javascript
+// Herramientas disponibles
+google_search(query, location="Colombia", language="es", num_results=10)
+google_news_search(query, time_period="qdr:d")
+google_images_search(query, image_size="medium", image_type="photo")
 ```
 
-## 🔌 Model Context Protocol (MCP)
+**Uso típico**: *"Busca las últimas noticias sobre IA en Colombia"*
+- Resultados orgánicos con snippets
+- Knowledge Graph si disponible
+- Answer boxes destacados
+- Búsquedas relacionadas
 
-Aura integrates several MCP servers that extend its capabilities:
-
-### 📁 Filesystem MCP
-Allows Aura to access and manipulate files in specific system directories.
-
-**Available functions:**
-- `list_directory`: Lists the contents of a directory
-- `read_file`: Reads the contents of a file
-- `write_file`: Writes or modifies files
-- `create_directory`: Creates new directories
-- `delete_file`: Deletes files
-- `move_file`: Moves or renames files
-
-**Configuration:**
-Allowed directories are automatically configured based on existing system directories (Documents, Downloads, etc.).
-
-### 🔍 Brave Search MCP
-Enables real-time web searches using the Brave search engine.
-
-**Available functions:**
-- `brave_search`: Searches for updated information on the web
-- `brave_local_search`: Search for local businesses and places
-- `brave_news_search`: Specific news search
-
-**Typical usage:**
-- "Search for the latest news about AI"
-- "What's the current weather in Madrid?"
-- "Find information about Python 3.12"
-
-### 🗃️ Obsidian Memory MCP
-Integration with Obsidian to create a persistent memory system.
-
-**Available functions:**
-- `search_notes`: Search notes by content, tags, or wikilinks
-- `read_note`: Reads the complete content of a note
-- `create_note`: Creates new notes in the vault
-- `update_note`: Updates existing notes
-- `list_vault_structure`: Lists the vault structure
-- `get_note_metadata`: Gets note metadata
-
-**Configuration:**
-Configure your Obsidian vault path in the `.env` file:
-```env
-OBSIDIAN_VAULT_PATH=/home/user/Documents/My Vault
+### 🗃️ **Obsidian Memory Server**
+```javascript
+// Gestión completa de notas
+search_notes(query, search_type="all", max_results=10)
+read_note(note_path)
+create_note(note_path, content, overwrite=false)
+update_note(note_path, content, mode="append")
+get_current_datetime(format="readable")
 ```
 
-### 📝 Notion MCP
-Integration with Notion API for managing pages, databases, and content.
+**Características avanzadas**:
+- **Búsqueda semántica**: Por contenido, filename, #tags, [[wikilinks]]
+- **Sistema de relevancia**: Puntuación basada en coincidencias múltiples
+- **Timestamps automáticos**: Zona horaria America/Bogotá
+- **Metadata extraction**: Tags y enlaces automáticamente identificados
 
-**Available functions:**
-- `search_pages`: Search for pages in your Notion workspace
-- `get_page`: Retrieve page content and properties
-- `create_page`: Create new pages in databases or as children of existing pages
-- `update_page`: Update page properties and content
-- `get_database`: Retrieve database structure and entries
-- `query_database`: Query database entries with filters
-- `create_database`: Create new databases
-- `get_block_children`: Get child blocks of a page
-- `append_block_children`: Add new blocks to a page
-- `update_block`: Update block content
-- `delete_block`: Delete blocks from pages
+**Uso típico**: *"Busca mis notas sobre Sequential Thinking y actualiza con lo que acabamos de aprender"*
 
-**Typical usage:**
-- "Create a new page in my project database"
-- "Search for pages about AI research"
-- "Update the status of my task in the project tracker"
-- "Add a new entry to my reading list database"
-- "Get all pages tagged with 'important'"
-
-**Configuration:**
-Configure your Notion API key in the `.env` file:
-```env
-NOTION_API_KEY=your_notion_integration_token
+### 📅 **Google Workspace Server**
+```javascript
+// Calendar management completo
+list_calendar_events(time_period="today", search_query="")
+create_calendar_event(title, start_datetime, end_datetime, location="", attendees=[], create_meet=false)
+find_free_time(start_date, end_date, duration_minutes=60, working_hours_only=true)
+get_calendar_summary(period="week", include_stats=true)
+send_calendar_reminder_email(subject, message, recipient_email)
 ```
 
-To get your Notion API key:
-1. Go to https://www.notion.so/my-integrations
-2. Create a new integration
-3. Copy the "Internal Integration Token"
-4. Add it to your `.env` file
+**Funcionalidades premium**:
+- **Análisis de productividad**: Estadísticas detalladas y insights
+- **Búsqueda inteligente de tiempo libre**: Con filtros de horario laboral
+- **Google Meet automático**: Creación de enlaces de reunión
+- **Recordatorios personalizados**: Envío automático de emails
+- **Multi-timezone**: Soporte para America/Bogotá
 
-**Important:** You need to share your Notion pages/databases with your integration for Aura to access them.
+**Uso típico**: *"¿Qué tengo mañana? Crea una reunión de 2 horas con Juan el viernes y encuentra tiempo libre esta semana"*
 
-### 🌐 Playwright MCP
-Advanced web automation for navigation, scraping, and web searches.
-
-**Available functions:**
-- `goto`: Navigate to specific URLs
-- `click`: Click on page elements
-- `fill`: Fill search forms
-- `textContent`: Extract text from elements
-- `screenshot`: Capture screenshots
-- `evaluate`: Execute custom JavaScript
-- `waitForSelector`: Wait for specific elements
-
-**Typical usage for Ecommerce:**
-- "Search for iPhone 15 price on Amazon"
-- "Compare laptop prices on MercadoLibre"
-- "Extract product information from eBay"
-- "Browse online store catalogs"
-
-**Configuration:**
-Playwright is automatically installed with the necessary browsers. No additional configuration required.
-
-## 🎨 Project Architecture
-
-```
-Aura_Ollama/
-├── src/                    # Main source code
-│   ├── main.py            # Main entry point
-│   ├── client.py          # AI client (Gemini/Ollama)
-│   ├── websocket_server.py # WebSocket server
-│   └── system_stats_api.py # Statistics API
-├── voice/                  # Voice modules
-│   ├── hear.py            # Voice recognition
-│   ├── speak.py           # Voice synthesis
-│   └── vosk-model-es-0.42/ # Spanish voice model
-├── mcp/                    # MCP servers
-│   └── obsidian_memory_server.js
-├── frontend/               # React application
-│   ├── src/
-│   ├── public/
-│   └── package.json
-├── logs/                   # Log files
-├── .env                    # Environment variables
-├── requirements.txt        # Python dependencies
-├── package.json           # Node.js dependencies
-└── start.sh               # Startup script
+### 🧠 **Sequential Thinking (Oficial Anthropic)**
+```javascript
+sequentialthinking(
+    thought="string", 
+    thoughtNumber=1, 
+    totalThoughts=5,
+    nextThoughtNeeded=true
+)
 ```
 
-## 🔧 Advanced Configuration
+**Integración automática**:
+- **Detección de complejidad**: Se activa automáticamente para tareas complejas
+- **Razonamiento visible**: Cada pensamiento mostrado en UI
+- **TTS buffer integration**: Reproducción sincronizada de pensamientos
+- **Context preservation**: Historial actualizado con razonamiento completo
 
-### Changing the AI model
+## 🏗️ Arquitectura del Sistema
 
-By default, Aura uses Google Gemini. To change to Ollama:
+### **Backend (Python)**
+```
+src/
+├── aura_websocket_server.py      # Servidor principal con TTS buffer
+└── system_stats_api.py           # API FastAPI para estadísticas
 
-1. Install Ollama: https://ollama.ai
-2. Download a model: `ollama pull qwen2.5-coder:7b`
-3. When starting Aura, select the Ollama option
+client/
+├── gemini_client.py              # Cliente Gemini con function calls iterativos
+├── mcp_client.py                 # Gestor de conexiones MCP
+├── config.py                     # Configuración centralized de servidores
+└── main.py                       # CLI interface
 
-### Adding new MCPs
-
-To add a new MCP server:
-
-1. Install the MCP server:
-```bash
-npm install @modelcontextprotocol/server-example
+voice/
+├── hear.py                       # STT con Vosk (español/inglés)
+├── speak.py                      # TTS con gTTS/ElevenLabs/Edge-TTS
+└── vosk-model-*/                 # Modelos de reconocimiento offline
 ```
 
-2. Modify `src/main.py` or `src/websocket_server.py` to add the configuration:
+### **Frontend (React + TypeScript)**
+```
+frontend/src/
+├── components/
+│   ├── VoiceAssistant.tsx        # Componente principal
+│   ├── EnergyOrb.tsx             # Orbe central animado
+│   └── ModernGlassCard.tsx       # Cards con glassmorphism
+├── hooks/
+│   ├── useOptimizedWebSocket.ts  # WebSocket + WebRTC integration
+│   ├── useWebRTC.ts              # Audio processing puro
+│   ├── useWeather.ts             # API del clima
+│   └── useSystemStats.ts         # Estadísticas del sistema
+└── pages/
+    └── Index.tsx                 # Página principal
+```
+
+### **MCP Servers (Node.js)**
+```
+mcp/
+├── serpapi_server.js             # Búsquedas web completas
+├── obsidian_memory_server.js     # Sistema de memoria persistente
+└── google_workspace_server.js    # Google Calendar + Gmail
+```
+
+## ⚡ Optimizaciones de Performance
+
+### **Audio Processing**
+- **WebRTC**: Cancelación de eco, supresión de ruido, AGC
+- **Sample Rate**: 16kHz optimizado para STT
+- **Buffer Management**: Queue asíncrono con interrupción inmediata
+- **Context Window**: 1M tokens de Gemini aprovechados completamente
+
+### **Frontend**
+- **Hardware Acceleration**: CSS transform3d para animaciones
+- **Lazy Loading**: Componentes cargados bajo demanda
+- **Memoization**: React.memo para componentes pesados
+- **WebSocket Optimization**: Reconexión exponential backoff
+
+### **Backend**
+- **Async/Await**: ThreadPoolExecutor para operaciones blocking
+- **Connection Pooling**: MCP connections persistentes
+- **Memory Management**: Cleanup automático de recursos
+- **uvloop**: Event loop optimizado para Linux
+
+## 🔧 Configuración Avanzada
+
+### **Selección de Modelos**
+- **Gemini 2.5 Flash**: Balance velocidad/capacidad
+- **Ollama Local**: Modelos offline (gpt-oss:20b, llama3:8b, etc.)
+
+### **Motores TTS**
+- **ElevenLabs**: Calidad premium, requiere API key
+- **Edge-TTS**: Gratuito, voces Microsoft
+
+### **Idiomas Soportados**
+- **Español**: Reconocimiento y síntesis completa
+- **Inglés**: Reconocimiento y síntesis completa
+- **Cambio dinámico**: Sin reiniciar el sistema
+
+### **GPU AMD Support**
 ```python
-"example": {
-    "command": "npx",
-    "args": ["-y", "@modelcontextprotocol/server-example"],
-    "transport": "stdio"
+# Detección automática multi-método
+def get_gpu_usage():
+    # 1. ROCm-smi --showuse
+    # 2. amdgpu_top -J -n 1  
+    # 3. /sys/class/drm/card*/device/gpu_busy_percent
+    # 4. radeontop -d - -l 1
+    # 5. Detección de Ollama activo
+```
+
+## 🐛 Resolución de Problemas
+
+### **Problemas Comunes**
+
+#### **Audio no funciona**
+```bash
+# Verificar permisos de micrófono
+sudo usermod -a -G audio $USER
+
+# Comprobar dispositivos
+arecord -l
+pulseaudio --check
+
+# Logs de audio
+tail -f logs/aura_websocket.log | grep -i audio
+```
+
+#### **MCP Servers fallan**
+```bash
+# Verificar Node.js y dependencies
+node --version  # >= 16
+npm list -g @modelcontextprotocol/server-sequential-thinking
+
+# Test individual de servidores
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | node mcp/serpapi_server.js
+```
+
+#### **Frontend no carga**
+```bash
+# Verificar puertos
+netstat -tulpn | grep -E ':(5173|8000|8766)'
+
+# Logs detallados
+cd frontend && npm run dev -- --verbose
+```
+
+### **Logs del Sistema**
+```bash
+# Estructura completa de logs
+logs/
+├── aura_websocket.log           # Servidor principal
+├── backend_stats.log            # API de estadísticas  
+└── frontend.log                 # React dev server
+
+# Monitoreo en tiempo real
+tail -f logs/aura_websocket.log logs/backend_stats.log
+```
+
+## 📊 Métricas y Monitoreo
+
+### **Estadísticas en Vivo**
+- **CPU Usage**: Via psutil con interval optimizado
+- **GPU AMD**: Múltiples métodos de detección
+- **Memory**: Virtual memory percentage
+- **Disk Usage**: Root filesystem utilization
+
+### **Performance Insights**
+- **Function Calls**: Hasta 15 iteraciones por consulta
+- **TTS Buffer**: Queue size y tiempo de reproducción
+- **WebSocket**: Latencia y reconexión automática
+- **MCP Connections**: Health checks y timeouts
+
+### **Analytics de Uso**
+- **Sequential Thinking**: Frecuencia y complejidad de pensamientos
+- **Calendar Integration**: Análisis de productividad semanal/mensual
+- **Search Patterns**: Tipos de búsquedas más frecuentes
+- **Audio Processing**: Tiempo de respuesta STT->TTS
+
+## 🤝 Contribuciones y Desarrollo
+
+### **Estructura para Contribuir**
+1. **Fork** el proyecto
+2. **Feature branch**: `git checkout -b feature/AmazingFeature`
+3. **Testing**: Verificar que todas las herramientas MCP funcionen
+4. **Documentation**: Actualizar README y doc/ si necesario
+5. **Pull Request**: Con descripción detallada
+
+### **Agregar Nuevos MCP Servers**
+```javascript
+// 1. Crear server en mcp/nuevo_server.js
+class NuevoServer {
+    constructor() {
+        this.tools = [
+            {
+                name: "nueva_herramienta",
+                description: "CUÁNDO USAR: ... CÓMO USAR: ...",
+                inputSchema: { /* JSON Schema */ }
+            }
+        ];
+    }
+    
+    async callTool(params) {
+        // Implementación de la herramienta
+    }
 }
 ```
 
-3. The server will be automatically available on the next run.
+```python
+# 2. Agregar a client/config.py
+config["nuevo-server"] = {
+    "command": "node",
+    "args": [os.path.join(mcp_dir, "nuevo_server.js")],
+    "env": {"API_KEY": os.getenv("NUEVA_API_KEY")}
+}
+```
 
-### Recommended MCP Configurations
+## 📚 Documentación Técnica
 
-**For Ecommerce (Option 9):**
-- Filesystem + Brave Search + Playwright
-- Ideal for price searches and comparisons
+Para documentación detallada sobre la implementación, consulta:
 
-**For Productivity (Option 10):**
-- Notion + Brave Search
-- Perfect for managing notes, tasks, and research
+- **`doc/01_cliente_gemini.md`**: Arquitectura del cliente Gemini y MCP
+- **`doc/02_frontend_integracion.md`**: Frontend React y integración backend  
+- **`doc/03_servidores_mcp.md`**: Implementación de herramientas MCP
 
-**For Development (Option 11):**
-- All MCPs (Filesystem + Brave Search + Obsidian Memory + Playwright + Notion)
-- Maximum functionality available
+## 🙏 Reconocimientos
 
-**For Basic Searches (Option 7):**
-- Obsidian Memory + Brave Search
-- Balance between functionality and performance
-
-**For Note Management (Option 5):**
-- Notion only
-- Focus on Notion workspace management
-
-### Voice synthesis engines
-
-Aura supports multiple TTS engines:
-
-- **gTTS** (default): Free, requires internet connection
-- **ElevenLabs**: High quality, requires API key
-- **edge-tts**: Free, uses Microsoft Edge voices
-
-To change the engine, use the command in the web interface or modify `voice/speak.py`.
-
-## 🐛 Troubleshooting
-
-### Voice recognition not working
-- Verify you have a microphone connected
-- Make sure the Vosk model is in `voice/vosk-model-es-0.42/`
-- Check microphone permissions on your system
-
-### WebSocket connection error
-- Verify that port 8765 is not in use
-- Check logs in `logs/websocket.log`
-
-### Frontend not loading
-- Make sure you've installed dependencies with `npm install`
-- Verify that port 5173 is free
-- Check logs in `logs/frontend.log`
-
-## 📝 Logs
-
-Logs are saved in the `logs/` folder:
-- `backend_stats.log`: Statistics API
-- `websocket.log`: WebSocket server
-- `frontend.log`: React application
-
-## 🤝 Contributions
-
-Contributions are welcome. Please:
-1. Fork the project
-2. Create a branch for your feature (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is under the MIT License. See the `LICENSE` file for more details.
-
-## 🙏 Acknowledgments
-
-- Google Gemini and Ollama for AI models
-- Vosk for offline voice recognition
-- Model Context Protocol for the extensible architecture
-- The open source community
+- **Api Gratuita de Google Gemini**: Modelo de IA de última generación
+- **Anthropic Sequential Thinking**: Servidor oficial de razonamiento
+- **Model Context Protocol**: Arquitectura extensible de herramientas
+- **Vosk**: Reconocimiento de voz offline
+- **Open-Meteo**: API meteorológica gratuita
+- **SerpAPI**: Búsquedas web estructuradas
 
 ---
 
-**Developed with ❤️ by Ary** 
+> *Aura representa el estado del arte en asistentes de IA conversacionales, combinando razonamiento secuencial visible, procesamiento de audio en tiempo real, y herramientas especializadas en una experiencia futurista e inmersiva.*
