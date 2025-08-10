@@ -21,21 +21,34 @@ const EnergyOrb: React.FC<EnergyOrbProps> = ({ isListening, isSpeaking }) => {
         isListening ? 'scale-125 rotate-12' : isSpeaking ? 'scale-110 rotate-6' : 'scale-100'
       }`}
       style={{
-        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(34, 211, 238, 0.6), rgba(147, 197, 253, 0.4))',
-        boxShadow: `
-          0 0 50px rgba(59, 130, 246, 0.6),
-          0 0 100px rgba(34, 211, 238, 0.4),
-          0 0 150px rgba(147, 197, 253, 0.2),
-          inset 0 0 30px rgba(255, 255, 255, 0.2)
-        `,
+        background: isSpeaking 
+          ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.8), rgba(59, 130, 246, 0.6), rgba(34, 211, 238, 0.4))'
+          : 'linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(34, 211, 238, 0.6), rgba(147, 197, 253, 0.4))',
+        boxShadow: isSpeaking 
+          ? `
+              0 0 50px rgba(239, 68, 68, 0.6),
+              0 0 100px rgba(59, 130, 246, 0.4),
+              0 0 150px rgba(34, 211, 238, 0.2),
+              inset 0 0 30px rgba(255, 255, 255, 0.2)
+            `
+          : `
+              0 0 50px rgba(59, 130, 246, 0.6),
+              0 0 100px rgba(34, 211, 238, 0.4),
+              0 0 150px rgba(147, 197, 253, 0.2),
+              inset 0 0 30px rgba(255, 255, 255, 0.2)
+            `,
         transform: 'perspective(1000px) rotateX(15deg) rotateY(15deg)',
         transformStyle: 'preserve-3d'
       }}>
         {/* Inner glass effect */}
         <div className="absolute inset-2 rounded-full bg-white/15 backdrop-blur-sm" />
         
-        {/* Energy core */}
-        <div className="absolute inset-6 rounded-full bg-gradient-radial from-cyan-400/60 to-blue-500/30 pulse-slow" />
+        {/* Energy core with speaking effect */}
+        <div className={`absolute inset-6 rounded-full pulse-slow ${
+          isSpeaking 
+            ? 'bg-gradient-radial from-red-400/70 to-blue-500/30' 
+            : 'bg-gradient-radial from-cyan-400/60 to-blue-500/30'
+        }`} />
         
         {/* Holographic scan lines */}
         <div className="absolute inset-0 rounded-full overflow-hidden">
@@ -46,14 +59,17 @@ const EnergyOrb: React.FC<EnergyOrbProps> = ({ isListening, isSpeaking }) => {
         {/* Sound waves when speaking */}
         {isSpeaking && (
           <div className="absolute inset-0 flex items-center justify-center">
-            {[...Array(6)].map((_, i) => (
+            {[...Array(8)].map((_, i) => (
               <div
                 key={i}
-                className="absolute w-1 bg-white/80 rounded-full wave-animation"
+                className="absolute w-1 rounded-full wave-animation"
                 style={{
-                  height: `${25 + i * 10}px`,
-                  left: `${40 + i * 10}%`,
-                  animationDelay: `${i * 0.15}s`
+                  height: `${20 + i * 8}px`,
+                  left: `${35 + i * 8}%`,
+                  animationDelay: `${i * 0.12}s`,
+                  background: i % 2 === 0 
+                    ? 'linear-gradient(to top, rgba(239, 68, 68, 0.8), rgba(255, 255, 255, 0.6))'
+                    : 'linear-gradient(to top, rgba(255, 255, 255, 0.7), rgba(59, 130, 246, 0.5))'
                 }}
               />
             ))}

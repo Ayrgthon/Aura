@@ -69,8 +69,9 @@ class TTSQueueItem:
 class TTSBuffer:
     """Buffer para reproducción secuencial de TTS"""
     
-    def __init__(self, tts_instance: TextToSpeech):
+    def __init__(self, tts_instance: TextToSpeech, server_instance=None):
         self.tts = tts_instance
+        self.server = server_instance  # Referencia al servidor para notificaciones
         self.queue = asyncio.Queue()
         self.is_playing = False
         self.current_item = None
@@ -94,6 +95,43 @@ class TTSBuffer:
         """Limpia el historial de items reproducidos"""
         self.played_items.clear()
         logger.info("🧹 Historial de reproducciones limpiado")
+    
+    async def _notify_tts_start(self, item: TTSQueueItem):
+        """Notifica al frontend que empezó reproducción de TTS"""
+        if self.server:
+            await self.server.broadcast_message({
+                'type': 'tts_status',
+                'speaking': True,
+                'speaking_animation': True,
+                'message': f'Reproduciendo {item.item_type}',
+                'item_type': item.item_type,
+                'content_preview': item.content[:50] + '...' if len(item.content) > 50 else item.content
+            })
+    
+    async def _notify_tts_end(self, item: TTSQueueItem):
+        """Notifica al frontend que terminó reproducción de TTS"""
+        if self.server:
+            # Verificar si hay más items en la cola
+            has_more_items = not self.queue.empty()
+            await self.server.broadcast_message({
+                'type': 'tts_status',
+                'speaking': has_more_items,  # Solo speaking=false si no hay más items
+                'speaking_animation': has_more_items,
+                'message': f'Completado {item.item_type}',
+                'item_completed': True,
+                'queue_remaining': self.queue.qsize()
+            })
+    
+    async def _notify_tts_interrupted(self, item: TTSQueueItem):
+        """Notifica al frontend que se interrumpió TTS"""
+        if self.server:
+            await self.server.broadcast_message({
+                'type': 'tts_status',
+                'speaking': False,
+                'speaking_animation': False,
+                'message': f'Interrumpido {item.item_type}',
+                'interrupted': True
+            })
         
     async def add_item(self, item: TTSQueueItem):
         """Añade item al buffer"""
@@ -120,6 +158,9 @@ class TTSBuffer:
                 
                 logger.info(f"🎵 Reproduciendo: {item.item_type} - {item.content[:50]}... (velocidad: {item.speed_multiplier}x)")
                 
+                # 📡 NOTIFICAR AL FRONTEND QUE EMPEZÓ REPRODUCCIÓN
+                await self._notify_tts_start(item)
+                
                 # Ejecutar TTS en hilo separado con velocidad específica
                 loop = asyncio.get_event_loop()
                 await loop.run_in_executor(
@@ -134,8 +175,12 @@ class TTSBuffer:
                     logger.info(f"✅ Completado: {item.item_type}")
                     # Guardar item completado para tracking del contexto
                     self.played_items.append(item)
+                    # 📡 NOTIFICAR AL FRONTEND QUE TERMINÓ REPRODUCCIÓN
+                    await self._notify_tts_end(item)
                 else:
                     logger.info(f"🔇 Interrumpido: {item.item_type}")
+                    # 📡 NOTIFICAR INTERRUPCIÓN AL FRONTEND
+                    await self._notify_tts_interrupted(item)
                     break
                 
                 self.current_item = None
@@ -437,8 +482,8 @@ class AuraWebSocketServer:
             else:
                 self.tts = TextToSpeech(voice="en-US-AndrewMultilingualNeural")
             
-            # Inicializar buffer TTS
-            self.tts_buffer = TTSBuffer(self.tts)
+            # Inicializar buffer TTS con referencia del servidor
+            self.tts_buffer = TTSBuffer(self.tts, server_instance=self)
             
             self.voice_initialized = True
             logger.info("✅ Sistema de voz inicializado")
