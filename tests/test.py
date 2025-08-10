@@ -9,8 +9,8 @@ import sys
 import os
 from pathlib import Path
 
-# Agregar el directorio client al path
-client_dir = Path(__file__).parent / "client"
+# Agregar el directorio client al path (ahora desde tests/ necesitamos subir un nivel)
+client_dir = Path(__file__).parent.parent / "client"  # Subir un nivel más
 sys.path.insert(0, str(client_dir))
 
 from gemini_client import SimpleGeminiClient
@@ -23,13 +23,13 @@ def print_test_welcome():
     print("🧪 AURA TEST - Cliente de Prueba")
     print("=" * 70)
     print("🎯 Modo: Chatbot para testing del agente autónomo")
-    print("🔧 Herramientas: Obsidian, Personal Assistant, Sequential Thinking, SerpAPI")
+    print("🔧 Herramientas: Obsidian, Google Workspace, Sequential Thinking, SerpAPI")
     print("📝 Comandos:")
     print("  • 'quit', 'exit' o 'salir' - Salir")
     print("  • 'tools' - Ver herramientas disponibles")
     print("  • 'clear' - Limpiar historial")
     print("  • 'test obsidian' - Probar funciones de Obsidian")
-    print("  • 'test personal' - Probar asistente personal")
+    print("  • 'test google' - Probar Google Workspace")
     print("=" * 70)
     print()
 
@@ -40,9 +40,9 @@ def print_test_suggestions():
         "🔍 Pruebas sugeridas:",
         "  1. 'busca información sobre Claude AI' (SerpAPI + Sequential Thinking)",
         "  2. 'busca notas sobre proyectos en mi vault' (Obsidian)",
-        "  3. 'muéstrame mis tareas pendientes de esta semana' (Personal Assistant)",
+        "  3. 'muéstrame mis eventos de esta semana' (Google Workspace)",
         "  4. 'crea una nota nueva sobre testing' (Obsidian)",
-        "  5. 'planifica el día de mañana' (Sequential + Personal Assistant)",
+        "  5. 'agenda una reunión para mañana' (Sequential + Google Workspace)",
         "",
         "🎯 El agente debe usar múltiples herramientas automáticamente"
     ]
@@ -116,8 +116,8 @@ async def test_client():
                 if user_input.lower() == 'test obsidian':
                     user_input = "Lista la estructura de mi vault de Obsidian y busca notas sobre proyectos"
                 
-                if user_input.lower() == 'test personal':
-                    user_input = "Muéstrame mis tareas pendientes de esta semana y dame estadísticas de productividad"
+                if user_input.lower() == 'test google':
+                    user_input = "Muéstrame mis eventos de esta semana y crea un evento de prueba para mañana"
                 
                 if not user_input:
                     continue

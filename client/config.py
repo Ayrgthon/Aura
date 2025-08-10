@@ -43,13 +43,26 @@ def get_mcp_servers_config() -> Dict[str, Dict[str, Any]]:
             "env": {"OBSIDIAN_VAULT_PATH": obsidian_vault}
         }
     
-    # Personal Assistant MCP (servidor personalizado local para tareas diarias)
-    daily_path = os.getenv("DAILY_PATH", "/home/ary/Documents/Ary Vault/Daily")
-    if os.path.exists(daily_path):
-        config["personal-assistant"] = {
+    # Personal Assistant MCP (servidor personalizado local para tareas diarias) - DESACTIVADO
+    # daily_path = os.getenv("DAILY_PATH", "/home/ary/Documents/Ary Vault/Daily")
+    # if os.path.exists(daily_path):
+    #     config["personal-assistant"] = {
+    #         "command": "node",
+    #         "args": [os.path.join(mcp_dir, "personal_assistant_server.js")],
+    #         "env": {"DAILY_PATH": daily_path}
+    #     }
+    
+    # Google Workspace MCP (servidor personalizado para Calendar, Gmail, Drive, etc.)
+    google_credentials = os.path.join(project_dir, "credentials.json")
+    google_token = os.path.join(project_dir, "token.json")
+    if os.path.exists(google_credentials) and os.path.exists(google_token):
+        config["google-workspace"] = {
             "command": "node",
-            "args": [os.path.join(mcp_dir, "personal_assistant_server.js")],
-            "env": {"DAILY_PATH": daily_path}
+            "args": [os.path.join(mcp_dir, "google_workspace_server.js")],
+            "env": {
+                "GOOGLE_CREDENTIALS_PATH": google_credentials,
+                "GOOGLE_TOKEN_PATH": google_token
+            }
         }
     
     # Sequential Thinking MCP (servidor oficial de Anthropic)

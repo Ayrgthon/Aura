@@ -48,3 +48,7 @@ voice/vosk-model-*/
 # Build outputs
 frontend/dist/
 frontend/build/
+
+# Google Workspace credentials
+credentials.json
+token.json
