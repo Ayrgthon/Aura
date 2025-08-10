@@ -118,6 +118,82 @@ class SerpApiServer {
                     },
                     required: ["query"]
                 }
+            },
+            {
+                name: "google_hotels_search",
+                description: "Busca hoteles en Google Hotels con filtros avanzados. Ideal para encontrar hoteles más populares/valorados por ciudad.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        query: {
+                            type: "string",
+                            description: "Ciudad o ubicación para buscar hoteles (ej: 'Bogotá', 'Medellín', 'Cartagena')"
+                        },
+                        check_in_date: {
+                            type: "string",
+                            description: "Fecha de check-in en formato YYYY-MM-DD (opcional)"
+                        },
+                        check_out_date: {
+                            type: "string", 
+                            description: "Fecha de check-out en formato YYYY-MM-DD (opcional)"
+                        },
+                        sort_by: {
+                            type: "integer",
+                            description: "Ordenar por: 3=Precio más bajo, 8=Rating más alto, 13=Más reseñas. Default: 8"
+                        },
+                        adults: {
+                            type: "integer",
+                            description: "Número de adultos (default: 2)"
+                        },
+                        children: {
+                            type: "integer",
+                            description: "Número de niños (default: 0)"
+                        },
+                        min_price: {
+                            type: "integer",
+                            description: "Precio mínimo por noche"
+                        },
+                        max_price: {
+                            type: "integer",
+                            description: "Precio máximo por noche"
+                        },
+                        currency: {
+                            type: "string",
+                            description: "Moneda para precios (ej: 'USD', 'COP'). Default: USD"
+                        }
+                    },
+                    required: ["query"]
+                }
+            },
+            {
+                name: "google_hotels_property_details",
+                description: "Obtiene detalles específicos de un hotel usando su property_token de Google Hotels.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        property_token: {
+                            type: "string",
+                            description: "Token único del hotel obtenido de google_hotels_search"
+                        },
+                        check_in_date: {
+                            type: "string",
+                            description: "Fecha de check-in en formato YYYY-MM-DD (opcional)"
+                        },
+                        check_out_date: {
+                            type: "string",
+                            description: "Fecha de check-out en formato YYYY-MM-DD (opcional)"
+                        },
+                        adults: {
+                            type: "integer",
+                            description: "Número de adultos (default: 2)"
+                        },
+                        currency: {
+                            type: "string",
+                            description: "Moneda para precios (default: USD)"
+                        }
+                    },
+                    required: ["property_token"]
+                }
             }
         ];
     }
@@ -186,6 +262,10 @@ class SerpApiServer {
                 return await this.googleNewsSearch(args);
             case 'google_images_search':
                 return await this.googleImagesSearch(args);
+            case 'google_hotels_search':
+                return await this.googleHotelsSearch(args);
+            case 'google_hotels_property_details':
+                return await this.googleHotelsPropertyDetails(args);
             default:
                 throw new Error(`Herramienta desconocida: ${name}`);
         }
@@ -305,6 +385,98 @@ class SerpApiServer {
             };
         } catch (error) {
             throw new Error(`Error en búsqueda de imágenes: ${error.message}`);
+        }
+    }
+
+    async googleHotelsSearch(args) {
+        const { 
+            query, 
+            check_in_date,
+            check_out_date,
+            sort_by = 8,
+            adults = 2,
+            children = 0,
+            min_price,
+            max_price,
+            currency = "USD"
+        } = args;
+
+        if (!query || query.trim() === '') {
+            throw new Error('Query de búsqueda requerido');
+        }
+
+        const searchParams = {
+            engine: 'google_hotels',
+            q: query,
+            gl: 'co', // Colombia
+            hl: 'es', // Español
+            currency: currency,
+            adults: adults,
+            sort_by: sort_by,
+            api_key: this.api_key
+        };
+
+        // Agregar parámetros opcionales solo si están definidos
+        if (check_in_date) searchParams.check_in_date = check_in_date;
+        if (check_out_date) searchParams.check_out_date = check_out_date;
+        if (children > 0) searchParams.children = children;
+        if (min_price) searchParams.min_price = min_price;
+        if (max_price) searchParams.max_price = max_price;
+
+        try {
+            const data = await this.makeRequest(searchParams);
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: this.formatHotelsResults(data, query)
+                    }
+                ]
+            };
+        } catch (error) {
+            throw new Error(`Error en búsqueda de hoteles: ${error.message}`);
+        }
+    }
+
+    async googleHotelsPropertyDetails(args) {
+        const { 
+            property_token,
+            check_in_date,
+            check_out_date,
+            adults = 2,
+            currency = "USD"
+        } = args;
+
+        if (!property_token || property_token.trim() === '') {
+            throw new Error('Property token requerido');
+        }
+
+        const searchParams = {
+            engine: 'google_hotels_property_details',
+            property_token: property_token,
+            gl: 'co',
+            hl: 'es', 
+            currency: currency,
+            adults: adults,
+            api_key: this.api_key
+        };
+
+        // Agregar fechas si están definidas
+        if (check_in_date) searchParams.check_in_date = check_in_date;
+        if (check_out_date) searchParams.check_out_date = check_out_date;
+
+        try {
+            const data = await this.makeRequest(searchParams);
+            return {
+                content: [
+                    {
+                        type: "text", 
+                        text: this.formatHotelDetailsResults(data)
+                    }
+                ]
+            };
+        } catch (error) {
+            throw new Error(`Error obteniendo detalles del hotel: ${error.message}`);
         }
     }
 
@@ -462,6 +634,139 @@ class SerpApiServer {
             });
         } else {
             output += `No se encontraron imágenes para: "${query}"`;
+        }
+
+        return output;
+    }
+
+    formatHotelsResults(data, query) {
+        let output = `🏨 **Hoteles en: "${query}"**\n\n`;
+
+        if (data && data.properties && Array.isArray(data.properties) && data.properties.length > 0) {
+            output += `🔍 **Se encontraron ${data.properties.length} hoteles**\n\n`;
+            
+            data.properties.forEach((hotel, index) => {
+                if (!hotel) return; // Skip null/undefined hotels
+                output += `**${index + 1}. ${hotel.name || 'Hotel sin nombre'}**\n`;
+                
+                if (hotel.overall_rating) {
+                    output += `⭐ Rating: ${hotel.overall_rating}`;
+                    if (hotel.reviews) {
+                        output += ` (${hotel.reviews} reseñas)`;
+                    }
+                    output += `\n`;
+                }
+                
+                if (hotel.rate_per_night && hotel.rate_per_night.lowest) {
+                    output += `💰 Precio: ${hotel.rate_per_night.lowest} por noche\n`;
+                }
+                
+                if (hotel.nearby_places && hotel.nearby_places.length > 0 && hotel.nearby_places[0] && hotel.nearby_places[0].name) {
+                    output += `📍 Ubicación: ${hotel.nearby_places[0].name}\n`;
+                }
+                
+                if (hotel.amenities && hotel.amenities.length > 0) {
+                    const topAmenities = hotel.amenities.slice(0, 3).map(a => a && a.name ? a.name : 'Servicio').join(', ');
+                    output += `🛎️ Servicios: ${topAmenities}\n`;
+                }
+                
+                if (hotel.property_token) {
+                    output += `🔗 Property Token: ${hotel.property_token}\n`;
+                }
+                
+                if (hotel.link) {
+                    output += `🌐 Ver más: ${hotel.link}\n`;
+                }
+                
+                output += `\n`;
+            });
+            
+            // Información adicional si está disponible
+            if (data.search_metadata && data.search_metadata.total_results) {
+                output += `\n📊 **Total de resultados disponibles:** ${data.search_metadata.total_results}`;
+            }
+            
+        } else {
+            output += `No se encontraron hoteles para: "${query}"\n`;
+            if (data && data.error) {
+                output += `Error de SerpAPI: ${data.error}\n`;
+            }
+        }
+
+        return output;
+    }
+
+    formatHotelDetailsResults(data) {
+        let output = `🏨 **Detalles del Hotel**\n\n`;
+
+        if (data.property_details) {
+            const hotel = data.property_details;
+            
+            output += `**${hotel.name || 'Hotel'}**\n`;
+            
+            if (hotel.overall_rating) {
+                output += `⭐ Rating General: ${hotel.overall_rating}`;
+                if (hotel.reviews_breakdown && hotel.reviews_breakdown.mentions) {
+                    output += ` (${hotel.reviews_breakdown.mentions} reseñas)`;
+                }
+                output += `\n`;
+            }
+            
+            if (hotel.address) {
+                output += `📍 Dirección: ${hotel.address}\n`;
+            }
+            
+            if (hotel.phone) {
+                output += `📞 Teléfono: ${hotel.phone}\n`;
+            }
+            
+            if (hotel.check_in_time || hotel.check_out_time) {
+                output += `🕐 Check-in: ${hotel.check_in_time || 'N/A'} | Check-out: ${hotel.check_out_time || 'N/A'}\n`;
+            }
+            
+            if (hotel.price && hotel.price.offers && hotel.price.offers.length > 0) {
+                output += `\n💰 **Precios:**\n`;
+                hotel.price.offers.slice(0, 3).forEach(offer => {
+                    output += `• ${offer.rate_per_night || offer.total_rate} - ${offer.booking_option || 'Oferta'}\n`;
+                });
+            }
+            
+            if (hotel.amenities && Array.isArray(hotel.amenities) && hotel.amenities.length > 0) {
+                output += `\n🛎️ **Servicios y Amenidades:**\n`;
+                hotel.amenities.forEach(amenity => {
+                    if (amenity && amenity.name) {
+                        output += `• ${amenity.name}\n`;
+                    }
+                });
+            }
+            
+            if (hotel.about && Array.isArray(hotel.about) && hotel.about.length > 0) {
+                output += `\n📝 **Sobre el hotel:**\n`;
+                hotel.about.slice(0, 3).forEach(info => {
+                    if (info && info.title && info.description) {
+                        output += `• **${info.title}**: ${info.description}\n`;
+                    }
+                });
+            }
+            
+            if (hotel.reviews_breakdown) {
+                output += `\n📊 **Desglose de Reviews:**\n`;
+                if (hotel.reviews_breakdown.location) {
+                    output += `• Ubicación: ${hotel.reviews_breakdown.location}\n`;
+                }
+                if (hotel.reviews_breakdown.cleanliness) {
+                    output += `• Limpieza: ${hotel.reviews_breakdown.cleanliness}\n`;
+                }
+                if (hotel.reviews_breakdown.service) {
+                    output += `• Servicio: ${hotel.reviews_breakdown.service}\n`;
+                }
+                if (hotel.reviews_breakdown.value) {
+                    output += `• Relación calidad-precio: ${hotel.reviews_breakdown.value}\n`;
+                }
+            }
+            
+        } else {
+            output += `No se pudieron obtener los detalles del hotel.`;
         }
 
         return output;
