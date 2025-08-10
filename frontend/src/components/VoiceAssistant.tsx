@@ -27,7 +27,7 @@ const VoiceAssistant = () => {
     // Estados para configuración de modelos
   const [showModelMenu, setShowModelMenu] = useState(false);
   const [modelType, setModelType] = useState<'gemini' | 'ollama'>('gemini');
-  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite');
+  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
   
   // Estados para control de encendido/apagado
@@ -71,7 +71,7 @@ const VoiceAssistant = () => {
     setModelType(type);
     let newModel = '';
     if (type === 'gemini') {
-      newModel = 'gemini-2.5-flash-lite';
+      newModel = 'gemini-2.5-flash';
       setSelectedModel(newModel);
     } else if (ollamaModels.length > 0) {
       newModel = ollamaModels[0];
@@ -231,6 +231,11 @@ const VoiceAssistant = () => {
           });
           break;
           
+        case 'aura_initializing':
+          setIsAuraReady(false);
+          toast.info(message.message);
+          break;
+          
         case 'aura_ready':
           setIsAuraReady(true);
           toast.success('Cliente Aura listo');
@@ -293,6 +298,16 @@ const VoiceAssistant = () => {
           if (message.message) {
             console.log('TTS Status:', message.message);
           }
+          break;
+          
+        case 'reasoning_thought':
+          // Manejar pensamientos de reasoning secuencial
+          const thoughtText = `💭 Pensamiento ${message.thought_number}/${message.total_thoughts}: ${message.thought}`;
+          toast.info(thoughtText, {
+            duration: 4000,
+            position: 'top-center'
+          });
+          console.log('Reasoning:', message);
           break;
           
         case 'language_changed':
