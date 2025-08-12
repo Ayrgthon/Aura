@@ -71,6 +71,15 @@ def get_mcp_servers_config() -> Dict[str, Dict[str, Any]]:
         "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
     }
     
+    # Notion MCP (servidor personalizado para integración con Notion)
+    notion_api_key = os.getenv("NOTION_API_KEY")
+    if notion_api_key:
+        config["notion"] = {
+            "command": "node",
+            "args": [os.path.join(mcp_dir, "notion_server.js")],
+            "env": {"NOTION_API_KEY": notion_api_key}
+        }
+    
     
     return config
 
