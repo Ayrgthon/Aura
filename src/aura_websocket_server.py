@@ -580,6 +580,12 @@ class AuraWebSocketServer:
                 self.clients[client_id]['listening'] = True
                 self.clients[client_id]['audio_buffer'] = ""
             
+            # 🔄 SOLUCIÓN: Reinicializar reconocedor Vosk para limpiar estado entre sesiones
+            if self.stt:
+                import vosk
+                self.stt.rec = vosk.KaldiRecognizer(self.stt.model, 16000)
+                logger.info("🔄 Reconocedor Vosk reinicializado para sesión limpia")
+            
             # Crear tarea de escucha
             task = asyncio.create_task(self._listen_and_accumulate(client_id))
             self.processing_tasks.add(task)
