@@ -55,7 +55,7 @@ def get_mcp_servers_config() -> Dict[str, Dict[str, Any]]:
     # Google Workspace MCP (servidor personalizado para Calendar, Gmail, Drive, etc.)
     google_credentials = os.path.join(project_dir, "credentials.json")
     google_token = os.path.join(project_dir, "token.json")
-    if os.path.exists(google_credentials) and os.path.exists(google_token):
+    if os.path.exists(google_credentials):
         config["google-workspace"] = {
             "command": "node",
             "args": [os.path.join(mcp_dir, "google_workspace_server.js")],
