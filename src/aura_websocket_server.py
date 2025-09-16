@@ -323,23 +323,23 @@ class TTSBuffer:
 
 class OptimizedAudioTrack(MediaStreamTrack):
     """Track de audio optimizado para WebRTC"""
-    
+
     kind = "audio"
-    
+
     def __init__(self, stt_instance: SpeechToText):
         super().__init__()
         self.stt = stt_instance
         self.audio_queue = queue.Queue()
-        
+
     async def recv(self):
         """Recibe frames de audio desde WebRTC"""
         frame = await super().recv()
-        
+
         # Procesar con STT si está disponible
         if self.stt and hasattr(frame, 'to_ndarray'):
             audio_data = frame.to_ndarray()
             self.audio_queue.put(audio_data)
-        
+
         return frame
 
 class AuraWebSocketServer:
