@@ -120,6 +120,10 @@ if check_port 8766; then
     print_warning "El puerto 8766 ya está en uso. El servidor WebSocket podría ya estar ejecutándose."
 else
     cd src/
+    # Preservar variables de entorno necesarias para Hyprland
+    export HYPRLAND_INSTANCE_SIGNATURE="$HYPRLAND_INSTANCE_SIGNATURE"
+    export WAYLAND_DISPLAY="$WAYLAND_DISPLAY"
+    export XDG_CURRENT_DESKTOP="$XDG_CURRENT_DESKTOP"
     nohup python aura_websocket_server.py > "$LOGS_DIR/websocket_server.log" 2>&1 &
     WEBSOCKET_PID=$!
     echo $WEBSOCKET_PID > "$LOGS_DIR/websocket_server.pid"

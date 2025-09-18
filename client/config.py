@@ -79,8 +79,18 @@ def get_mcp_servers_config() -> Dict[str, Dict[str, Any]]:
             "args": [os.path.join(mcp_dir, "notion_server.js")],
             "env": {"NOTION_API_KEY": notion_api_key}
         }
-    
-    
+
+    # Hyprland Control MCP (servidor personalizado para control del entorno de escritorio)
+    config["hyprland-control"] = {
+        "command": "node",
+        "args": [os.path.join(mcp_dir, "hyprland_control_server.js")],
+        "env": {
+            "HYPRLAND_INSTANCE_SIGNATURE": os.environ.get("HYPRLAND_INSTANCE_SIGNATURE", ""),
+            "WAYLAND_DISPLAY": os.environ.get("WAYLAND_DISPLAY", ""),
+            "XDG_CURRENT_DESKTOP": os.environ.get("XDG_CURRENT_DESKTOP", "")
+        }
+    }
+
     return config
 
 
