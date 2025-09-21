@@ -424,6 +424,7 @@ class ConversationState(Enum):
     CONVERSATIONAL = "conversational"
     PROCESSING = "processing"
     SPEAKING = "speaking"
+    SUSPENDED = "suspended"  # Nuevo estado de suspensión
 
 class AuraGlobalSystem:
     """Sistema Aura global conversacional con WebSocket"""
@@ -447,7 +448,11 @@ class AuraGlobalSystem:
         self.conversation_buffer = ""
         self.last_speech_time = 0
         self.timeout_seconds = 2.0
-        self.wake_phrase = "aura despierta"
+
+        # Frases de control
+        self.wake_phrases = ["aura despierta", "ahora despierta"]
+        self.suspend_phrase = "aura descansa"
+        self.shutdown_phrase = "aura apaga el sistema"
 
         # Control de bloqueo de audio para evitar feedback (ya no necesario con detección dinámica)
         # self.is_speaking = False  # Removido - ahora usamos detección dinámica
@@ -664,8 +669,17 @@ class AuraGlobalSystem:
             return False
 
     def detect_wake_phrase(self, text: str) -> bool:
-        """Detecta la frase de activación"""
-        return self.wake_phrase.lower() in text.lower()
+        """Detecta las frases de activación"""
+        text_lower = text.lower()
+        return any(phrase in text_lower for phrase in self.wake_phrases)
+
+    def detect_suspend_phrase(self, text: str) -> bool:
+        """Detecta la frase de suspensión"""
+        return self.suspend_phrase.lower() in text.lower()
+
+    def detect_shutdown_phrase(self, text: str) -> bool:
+        """Detecta la frase de apagado"""
+        return self.shutdown_phrase.lower() in text.lower()
 
     def is_tts_playing(self) -> bool:
         """Detecta dinámicamente si el TTS está reproduciéndose"""
@@ -933,7 +947,23 @@ class AuraGlobalSystem:
         if not text.strip():
             return
 
-        if self.state == ConversationState.LISTENING_FOR_WAKE:
+        # Detectar comandos de control en cualquier estado (excepto PROCESSING/SPEAKING)
+        if self.state not in [ConversationState.PROCESSING, ConversationState.SPEAKING]:
+            # Comando de apagado (prioridad máxima)
+            if self.detect_shutdown_phrase(text):
+                logger.info("🔴 Comando de apagado detectado!")
+                self.shutdown_system()
+                return
+
+            # Comando de suspensión
+            if self.detect_suspend_phrase(text):
+                logger.info("😴 Comando de suspensión detectado!")
+                if self.tts:
+                    self.tts.speak("Entrando en modo suspensión.")
+                self.suspend_system()
+                return
+
+        if self.state == ConversationState.LISTENING_FOR_WAKE or self.state == ConversationState.SUSPENDED:
             logger.info(f"🎤 Escuchando: '{text}'")
 
             # Notificar texto reconocido via WebSocket
@@ -1010,6 +1040,19 @@ class AuraGlobalSystem:
                     self.state = ConversationState.LISTENING_FOR_WAKE
 
         elif self.state == ConversationState.CONVERSATIONAL:
+            # Verificar comandos de control también en modo conversacional
+            if self.detect_shutdown_phrase(text):
+                logger.info("🔴 Comando de apagado detectado en modo conversacional!")
+                self.shutdown_system()
+                return
+
+            if self.detect_suspend_phrase(text):
+                logger.info("😴 Comando de suspensión detectado en modo conversacional!")
+                if self.tts:
+                    self.tts.speak("Entrando en modo suspensión.")
+                self.suspend_system()
+                return
+
             # Acumular texto en buffer conversacional
             if self.conversation_buffer:
                 self.conversation_buffer += " " + text
@@ -1118,6 +1161,49 @@ class AuraGlobalSystem:
 
         logger.info("✅ Limpieza completada")
 
+    def suspend_system(self):
+        """Suspende el sistema manteniendo STT activo"""
+        logger.info("😴 Aura entrando en modo suspensión")
+        self.state = ConversationState.SUSPENDED
+
+        # Limpiar buffer conversacional
+        self.conversation_buffer = ""
+
+        # Limpiar buffer TTS
+        if self.tts_buffer:
+            self.tts_buffer.clear_queue()
+
+        # Notificar cambio de estado via WebSocket
+        asyncio.run_coroutine_threadsafe(
+            self.notify_state_change(ConversationState.SUSPENDED, {
+                'message': 'Aura en modo suspensión - Di una frase de activación para despertar'
+            }),
+            self.event_loop
+        )
+
+    def shutdown_system(self):
+        """Apaga completamente el sistema"""
+        logger.info("🔴 Iniciando apagado completo del sistema")
+
+        # Notificar apagado via WebSocket
+        asyncio.run_coroutine_threadsafe(
+            self.broadcast_message({
+                'type': 'system_shutdown',
+                'message': 'Aura apagándose completamente...',
+                'timestamp': time.time()
+            }),
+            self.event_loop
+        )
+
+        # Reproducir mensaje de despedida
+        if self.tts:
+            self.tts.speak("Hasta luego. Apagando sistema.")
+            time.sleep(1)  # Esperar a que termine el TTS
+
+        # Activar flag de apagado
+        self.running = False
+        logger.info("👋 Sistema apagado")
+
     async def handle_websocket_client(self, websocket, path=None):
         """Maneja conexión de cliente WebSocket"""
         client_id = await self.register_client(websocket)
@@ -1184,7 +1270,10 @@ class AuraGlobalSystem:
         self.start_listening_in_thread()
 
         # Mensaje de bienvenida
-        logger.info("🎯 Sistema listo - Di 'Aura despierta' para activar")
+        logger.info("🎯 Sistema listo - Comandos disponibles:")
+        logger.info("   🌟 Activar: 'Aura despierta' o 'Ahora despierta'")
+        logger.info("   😴 Suspender: 'Aura descansa'")
+        logger.info("   🔴 Apagar: 'Aura apaga el sistema'")
         logger.info(f"🌐 WebSocket disponible en ws://{self.host}:{self.port}")
         logger.info("⌨️ Presiona Ctrl+C para salir")
 
