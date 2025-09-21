@@ -354,7 +354,37 @@ class GoogleWorkspaceServer {
             try {
                 // Intentar cargar token existente
                 const token = await fs.readFile(this.token_path);
-                oAuth2Client.setCredentials(JSON.parse(token));
+                const tokenData = JSON.parse(token);
+                oAuth2Client.setCredentials(tokenData);
+
+                // Configurar refresh automático de tokens
+                oAuth2Client.on('tokens', async (tokens) => {
+                    console.log('🔄 Renovando token de Google...');
+                    if (tokens.refresh_token) {
+                        // Solo actualizar si hay nuevo refresh token
+                        tokenData.refresh_token = tokens.refresh_token;
+                    }
+                    tokenData.access_token = tokens.access_token;
+                    tokenData.expiry_date = tokens.expiry_date;
+
+                    // Guardar token actualizado
+                    await fs.writeFile(this.token_path, JSON.stringify(tokenData, null, 2));
+                    console.log('✅ Token de Google renovado y guardado');
+                });
+
+                // Verificar si el token está expirado y renovarlo si es necesario
+                const now = Date.now();
+                if (tokenData.expiry_date && tokenData.expiry_date < now) {
+                    console.log('⚠️ Token expirado, renovando...');
+                    try {
+                        const { credentials } = await oAuth2Client.refreshAccessToken();
+                        oAuth2Client.setCredentials(credentials);
+                        console.log('✅ Token renovado exitosamente');
+                    } catch (refreshError) {
+                        throw new Error(`Error renovando token: ${refreshError.message}`);
+                    }
+                }
+
                 return oAuth2Client;
             } catch (err) {
                 throw new Error('Token no encontrado. Ejecuta la autenticación primero con calendar-simple.js');

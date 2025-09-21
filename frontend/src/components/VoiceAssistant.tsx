@@ -564,44 +564,48 @@ const VoiceAssistant = () => {
         {/* Panel Voice Recognition con posición absoluta y tamaño fijo */}
         <div className="absolute bottom-8 z-20" style={{width: '380px', height: '340px', right: '-1.5rem'}}>
           <div style={{width: '330px', height: '240px', minWidth: '330px', maxWidth: '330px', minHeight: '240px', maxHeight: '240px', position: 'relative'}}>
-            <ModernGlassCard 
-              title="VOICE RECOGNITION" 
-              delay={0.8} 
+            <ModernGlassCard
+              title="VOICE RECOGNITION"
+              delay={0.8}
               icon={<MicIcon className="w-3.5 h-3.5" />}
               accentColor="blue"
               className="w-full h-full"
             >
-              <div style={{display: 'flex', flexDirection: 'column', height: '200px', overflow: 'hidden', width: '100%', boxSizing: 'border-box'}}>
-                <div className="text-xs p-2 rounded bg-white/5 border border-white/10" style={{flexShrink: 0, wordWrap: 'break-word', overflowWrap: 'break-word', boxSizing: 'border-box', maxWidth: '100%'}}>
-                  <div className="font-medium mb-1" style={{color: 'rgb(34, 211, 238)', textShadow: '0 0 8px rgba(34, 211, 238, 0.6)'}}>Estado</div>
-                  <div className="text-white/70">
-                    {isConnected ? '✅ Conectado' : '❌ Desconectado'}
-                  </div>
-                  <div className="text-white/70">
-                    Aura: {isAuraReady ? '✅ Listo' : '⏳ Inicializando...'}
-                  </div>
-                </div>
-                {/* Mostrar transcripción en vivo mientras escucha */}
-                {isListening && liveTranscription && (
-                  <div className="text-xs p-2 rounded bg-cyan-500/10 border border-cyan-500/30 mt-2" style={{flexShrink: 0, wordWrap: 'break-word', overflowWrap: 'break-word', boxSizing: 'border-box', maxWidth: '100%'}}>
-                    <div className="text-cyan-400 font-medium mb-1 flex items-center gap-1">
-                      <span className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></span>
-                      Escuchando en vivo...
+              {/* TODO EL CONTENIDO ES SCROLLABLE AHORA */}
+              <div className="overflow-y-auto h-full" style={{height: '200px', width: '100%', paddingRight: '4px'}}>
+                <div className="space-y-2">
+                  <div className="text-xs p-2 rounded bg-white/5 border border-white/10" style={{wordWrap: 'break-word', overflowWrap: 'break-word', boxSizing: 'border-box', maxWidth: '100%'}}>
+                    <div className="font-medium mb-1" style={{color: 'rgb(34, 211, 238)', textShadow: '0 0 8px rgba(34, 211, 238, 0.6)'}}>Estado</div>
+                    <div className="text-white/70">
+                      {isConnected ? '✅ Conectado' : '❌ Desconectado'}
                     </div>
-                    <div className="text-cyan-200/80" style={{wordWrap: 'break-word', overflowWrap: 'break-word', maxWidth: '100%', boxSizing: 'border-box'}}>{liveTranscription}</div>
-                  </div>
-                )}
-                
-                {/* Mostrar texto reconocido final */}
-                {lastRecognizedText && (
-                  <div className="text-xs p-2 rounded bg-white/5 border border-white/10 mt-2" style={{flexShrink: 0, wordWrap: 'break-word', overflowWrap: 'break-word', boxSizing: 'border-box', maxWidth: '100%'}}>
-                    <div className="text-blue-400 font-medium mb-1">
-                      {isProcessing ? '⏳ Procesando...' : 'Texto reconocido'}
+                    <div className="text-white/70">
+                      Aura: {isAuraReady ? '✅ Listo' : '⏳ Inicializando...'}
                     </div>
-                    <div className="text-white/70" style={{wordWrap: 'break-word', overflowWrap: 'break-word', maxWidth: '100%', boxSizing: 'border-box'}}>{lastRecognizedText}</div>
                   </div>
-                )}
-                <div style={{flex: '1 1 0', minHeight: '0', overflowY: 'auto', marginTop: '8px', width: '100%', boxSizing: 'border-box'}}>
+
+                  {/* Mostrar transcripción en vivo mientras escucha */}
+                  {isListening && liveTranscription && (
+                    <div className="text-xs p-2 rounded bg-cyan-500/10 border border-cyan-500/30" style={{wordWrap: 'break-word', overflowWrap: 'break-word', boxSizing: 'border-box', maxWidth: '100%'}}>
+                      <div className="text-cyan-400 font-medium mb-1 flex items-center gap-1">
+                        <span className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></span>
+                        Escuchando en vivo...
+                      </div>
+                      <div className="text-cyan-200/80" style={{wordWrap: 'break-word', overflowWrap: 'break-word', maxWidth: '100%', boxSizing: 'border-box'}}>{liveTranscription}</div>
+                    </div>
+                  )}
+
+                  {/* Mostrar texto reconocido final */}
+                  {lastRecognizedText && (
+                    <div className="text-xs p-2 rounded bg-white/5 border border-white/10" style={{wordWrap: 'break-word', overflowWrap: 'break-word', boxSizing: 'border-box', maxWidth: '100%'}}>
+                      <div className="text-blue-400 font-medium mb-1">
+                        {isProcessing ? '⏳ Procesando...' : 'Texto reconocido'}
+                      </div>
+                      <div className="text-white/70" style={{wordWrap: 'break-word', overflowWrap: 'break-word', maxWidth: '100%', boxSizing: 'border-box'}}>{lastRecognizedText}</div>
+                    </div>
+                  )}
+
+                  {/* Mostrar respuesta de Aura */}
                   {lastResponse && (
                     <div className="text-xs p-2 rounded bg-white/5 border border-white/10" style={{wordWrap: 'break-word', overflowWrap: 'break-word', width: '100%', boxSizing: 'border-box', maxWidth: '100%'}}>
                       <div className="text-blue-400 font-medium mb-1">Respuesta de Aura</div>
