@@ -75,6 +75,8 @@ class TTSBuffer:
         self.should_stop = False  # Flag para interrupción
         self.current_thread = None  # Referencia al hilo actual de TTS
         self.played_items = []  # Lista de items reproducidos completamente
+        self.has_sequential_thinking = False  # Track si hay sequential thinking
+        self.first_reasoning_sent = False  # Track si ya se envió el primer razonamiento
 
     def get_completed_context(self) -> list:
         """Obtiene el contexto de lo que realmente se reprodujo completamente"""
@@ -90,6 +92,40 @@ class TTSBuffer:
         """Limpia el historial de items reproducidos"""
         self.played_items.clear()
         logger.info("🧹 Historial de reproducciones limpiado")
+
+    def _split_into_sentences(self, text: str) -> list:
+        """Separa texto en oraciones por puntos, comas y signos de puntuación"""
+        import re
+
+        # Separar por puntos, comas, signos de exclamación, interrogación, etc.
+        # Mantener el separador al final de cada oración
+        sentences = re.split(r'([.!?,;:])', text)
+
+        # Recombinar oraciones con sus signos de puntuación
+        result = []
+        current_sentence = ""
+
+        for i, part in enumerate(sentences):
+            current_sentence += part
+
+            # Si es un signo de puntuación o llegamos al final
+            if part in '.!?,;:' or i == len(sentences) - 1:
+                if current_sentence.strip():
+                    result.append(current_sentence.strip())
+                current_sentence = ""
+
+        return [s for s in result if s.strip()]
+
+    def _get_first_paragraph(self, text: str) -> str:
+        """Extrae el primer párrafo del texto"""
+        paragraphs = text.split('\n\n')
+        return paragraphs[0] if paragraphs else text
+
+    def reset_conversation_tracking(self):
+        """Resetea el tracking de conversación para nueva interacción"""
+        self.has_sequential_thinking = False
+        self.first_reasoning_sent = False
+        logger.info("🔄 Tracking de conversación reseteado")
 
     async def _notify_tts_start(self, item: TTSQueueItem):
         """Notifica al frontend que empezó reproducción de TTS"""
@@ -137,6 +173,70 @@ class TTSBuffer:
         if not self.processing_task or self.processing_task.done():
             self.processing_task = asyncio.create_task(self._process_queue())
 
+    async def add_response_with_sentence_splitting(self, text: str, item_type: str = 'response'):
+        """Añade respuesta con separación SOLO de la primera oración para respuesta rápida"""
+        if not text.strip():
+            return
+
+        # Determinar si separar solo la primera oración
+        should_split_first = False
+
+        if self.has_sequential_thinking:
+            # Si hay sequential thinking, solo separar la primera oración del primer razonamiento
+            if item_type == 'thought' and not self.first_reasoning_sent:
+                should_split_first = True
+                self.first_reasoning_sent = True
+                logger.info("📝 Enviando primera oración del primer razonamiento (sequential thinking)")
+        else:
+            # Sin sequential thinking, separar solo la primera oración de la respuesta
+            if item_type == 'response':
+                should_split_first = True
+                logger.info("📝 Enviando primera oración de la respuesta (sin sequential thinking)")
+
+        if should_split_first:
+            sentences = self._split_into_sentences(text)
+
+            if len(sentences) > 0:
+                first_sentence = sentences[0]
+                remaining_text = " ".join(sentences[1:]) if len(sentences) > 1 else ""
+
+                logger.info(f"🎵 Enviando primera oración rápida: '{first_sentence[:50]}...'")
+
+                # Enviar primera oración con velocidad normal pero prioridad alta
+                await self.add_item(TTSQueueItem(
+                    id=str(uuid.uuid4()),
+                    content=first_sentence,
+                    item_type=f'{item_type}_first',
+                    priority=0,  # Máxima prioridad
+                    speed_multiplier=1.0  # Velocidad normal
+                ))
+
+                # Enviar resto del texto si existe
+                if remaining_text.strip():
+                    await self.add_item(TTSQueueItem(
+                        id=str(uuid.uuid4()),
+                        content=remaining_text,
+                        item_type=item_type,
+                        priority=1,
+                        speed_multiplier=1.0  # Velocidad normal
+                    ))
+            else:
+                # No se pudo separar, enviar todo
+                await self.add_item(TTSQueueItem(
+                    id=str(uuid.uuid4()),
+                    content=text,
+                    item_type=item_type,
+                    speed_multiplier=1.0
+                ))
+        else:
+            # Enviar texto completo normalmente
+            await self.add_item(TTSQueueItem(
+                id=str(uuid.uuid4()),
+                content=text,
+                item_type=item_type,
+                speed_multiplier=1.0  # Velocidad normal
+            ))
+
     async def _process_queue(self):
         """Procesa la cola TTS secuencialmente"""
         while True:
@@ -172,6 +272,9 @@ class TTSBuffer:
                     self.played_items.append(item)
                     # 📡 NOTIFICAR AL FRONTEND QUE TERMINÓ REPRODUCCIÓN
                     await self._notify_tts_end(item)
+
+                    # Pausa mínima entre items para evitar superposición pero mantener fluidez
+                    await asyncio.sleep(0.01)  # 10ms mínimo entre oraciones - máxima fluidez
                 else:
                     logger.info(f"🔇 Interrumpido: {item.item_type}")
                     # 📡 NOTIFICAR INTERRUPCIÓN AL FRONTEND
@@ -248,9 +351,9 @@ class TTSBuffer:
                 pygame.mixer.music.load(audio_file)
                 pygame.mixer.music.play()
 
-                # Loop interrumpible
+                # Loop interrumpible con menos tiempo entre checks
                 while pygame.mixer.music.get_busy() and not self.should_stop:
-                    pygame.time.wait(50)  # Check más frecuente
+                    pygame.time.wait(10)  # Check mucho más frecuente para menos latencia
 
                 # Si fue interrumpido, parar inmediatamente
                 if self.should_stop:
@@ -343,7 +446,7 @@ class AuraGlobalSystem:
         # Control conversacional
         self.conversation_buffer = ""
         self.last_speech_time = 0
-        self.timeout_seconds = 4.0
+        self.timeout_seconds = 2.0
         self.wake_phrase = "aura despierta"
 
         # Control de bloqueo de audio para evitar feedback (ya no necesario con detección dinámica)
@@ -631,13 +734,12 @@ class AuraGlobalSystem:
             if not function_calls:
                 final_text = "".join(text_parts) if text_parts else "Tarea completada"
 
-                # Añadir respuesta final al buffer TTS
+                # Usar nueva función de separación por oraciones para respuestas finales
                 if self.tts_buffer and final_text.strip():
-                    await self.tts_buffer.add_item(TTSQueueItem(
-                        id=str(uuid.uuid4()),
-                        content=final_text,
+                    await self.tts_buffer.add_response_with_sentence_splitting(
+                        final_text,
                         item_type='response'
-                    ))
+                    )
 
                 return final_text
 
@@ -697,6 +799,10 @@ class AuraGlobalSystem:
     async def _handle_sequential_thinking(self, func_call):
         """Maneja llamadas a Sequential Thinking para extraer pensamientos"""
         try:
+            # Marcar que hay sequential thinking en esta conversación
+            if self.tts_buffer:
+                self.tts_buffer.has_sequential_thinking = True
+
             args = dict(func_call.args) if func_call.args else {}
 
             # Extraer información del pensamiento
@@ -716,16 +822,12 @@ class AuraGlobalSystem:
                     'timestamp': time.time()
                 })
 
-                # Añadir pensamiento al buffer TTS con velocidad aumentada
+                # Usar nueva función de separación por oraciones para primer razonamiento
                 if self.tts_buffer:
-                    await self.tts_buffer.add_item(TTSQueueItem(
-                        id=str(uuid.uuid4()),
-                        content=thought_content,
-                        item_type='thought',
-                        thought_number=int(thought_number),
-                        total_thoughts=int(total_thoughts),
-                        speed_multiplier=1.8  # Más rápido para pensamientos
-                    ))
+                    await self.tts_buffer.add_response_with_sentence_splitting(
+                        thought_content,
+                        item_type='thought'
+                    )
 
         except Exception as e:
             logger.error(f"Error manejando sequential thinking: {e}")
@@ -779,6 +881,10 @@ class AuraGlobalSystem:
         if not self.conversation_buffer.strip():
             logger.info("📝 Buffer vacío, volviendo a escucha")
             return
+
+        # Resetear tracking de conversación para nueva interacción
+        if self.tts_buffer:
+            self.tts_buffer.reset_conversation_tracking()
 
         self.state = ConversationState.PROCESSING
         message = self.conversation_buffer.strip()
@@ -849,6 +955,10 @@ class AuraGlobalSystem:
 
                 # Enviar mensaje inicial
                 try:
+                    # Resetear tracking de conversación para nueva activación
+                    if self.tts_buffer:
+                        self.tts_buffer.reset_conversation_tracking()
+
                     self.state = ConversationState.PROCESSING
 
                     # Llamada async al cliente Gemini usando event loop persistente

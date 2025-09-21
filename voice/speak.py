@@ -43,7 +43,7 @@ class TextToSpeech:
                 pygame.mixer.music.play()
                 
                 while pygame.mixer.music.get_busy():
-                    pygame.time.wait(100)
+                    pygame.time.wait(10)  # Reducir tiempo de espera para menos latencia entre oraciones
                     
                 os.unlink(audio_file)
             
