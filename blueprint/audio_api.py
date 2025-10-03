@@ -11,6 +11,12 @@ import sys
 from datetime import datetime
 import logging
 import subprocess
+import threading
+import time
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 # Agregar paths necesarios
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'voice'))
@@ -70,21 +76,45 @@ except Exception as e:
     logger.error(f"❌ Error inicializando TTS: {e}")
     tts = None
 
+# Event loop persistente para operaciones async del cliente Gemini
+event_loop = None
+event_loop_thread = None
+
+def start_event_loop():
+    """Inicia un event loop persistente en un thread separado"""
+    global event_loop
+    event_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(event_loop)
+    event_loop.run_forever()
+
+def run_async(coro):
+    """Ejecuta una corrutina en el event loop persistente"""
+    global event_loop
+    if not event_loop or event_loop.is_closed():
+        raise RuntimeError("Event loop no disponible")
+    future = asyncio.run_coroutine_threadsafe(coro, event_loop)
+    return future.result()
+
+# Iniciar event loop persistente en thread separado
+logger.info("🔄 Iniciando event loop persistente...")
+event_loop_thread = threading.Thread(target=start_event_loop, daemon=True)
+event_loop_thread.start()
+
+# Esperar a que el loop esté listo
+time.sleep(0.1)
+logger.info("✅ Event loop persistente iniciado")
+
 # Inicializar Gemini Client
 logger.info("🤖 Inicializando Gemini Client...")
 gemini_client = None
 try:
     gemini_client = SimpleGeminiClient(model_name="gemini-2.5-flash", debug=True)
 
-    # Configurar servidores MCP
+    # Configurar servidores MCP usando el event loop persistente
     mcp_config = get_mcp_servers_config()
     if mcp_config:
         logger.info(f"🛠️ Configurando {len(mcp_config)} servidores MCP...")
-        # Crear event loop para async setup
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        success = loop.run_until_complete(gemini_client.setup_mcp_servers(mcp_config))
-        loop.close()
+        success = run_async(gemini_client.setup_mcp_servers(mcp_config))
 
         if success:
             logger.info("✅ Gemini Client y MCP configurados correctamente")
@@ -163,6 +193,18 @@ async def health_check():
     """Endpoint de health check"""
     return {
         "status": "healthy",
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@app.get("/status")
+async def get_system_status():
+    """Endpoint para obtener el estado de todos los componentes del sistema"""
+    return {
+        "available": True,
+        "stt": stt is not None,
+        "tts": tts is not None,
+        "gemini": gemini_client is not None,
         "timestamp": datetime.now().isoformat()
     }
 
@@ -343,8 +385,8 @@ async def process_audio(audio: UploadFile = File(...)):
         if not gemini_client:
             raise Exception("Gemini Client no está inicializado")
 
-        # Usar await directamente ya que estamos en una función async
-        gemini_response = await gemini_client.chat(transcription)
+        # Usar el event loop persistente para ejecutar gemini.chat
+        gemini_response = run_async(gemini_client.chat(transcription))
 
         logger.info(f"✅ PASO 3 COMPLETO: Respuesta Gemini: '{gemini_response[:100]}...'")
 

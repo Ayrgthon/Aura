@@ -25,6 +25,14 @@ const VoiceAssistant = () => {
   const [isAuraReady, setIsAuraReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Estado de la API REST
+  const [apiStatus, setApiStatus] = useState({
+    available: false,
+    stt: false,
+    tts: false,
+    gemini: false
+  });
+
     // Estados para configuración de modelos
   const [showModelMenu, setShowModelMenu] = useState(false);
   const [modelType, setModelType] = useState<'gemini' | 'ollama'>('gemini');
@@ -200,6 +208,35 @@ const VoiceAssistant = () => {
 
   // Configurar Weather
   const { weatherData } = useWeather('Barranquilla');
+
+  // Verificar estado de la API REST cada 10 segundos
+  useEffect(() => {
+    const checkApiStatus = async () => {
+      try {
+        const response = await fetch('http://localhost:8001/status');
+        if (response.ok) {
+          const data = await response.json();
+          setApiStatus({
+            available: data.available,
+            stt: data.stt,
+            tts: data.tts,
+            gemini: data.gemini
+          });
+        }
+      } catch (error) {
+        setApiStatus({
+          available: false,
+          stt: false,
+          tts: false,
+          gemini: false
+        });
+      }
+    };
+
+    checkApiStatus(); // Check inicial
+    const interval = setInterval(checkApiStatus, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Configurar Audio Recorder
   const {
@@ -482,17 +519,17 @@ const VoiceAssistant = () => {
           >
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${isConnected ? 'pulse-slow' : 'bg-red-400'}`} style={isConnected ? {backgroundColor: 'rgb(34, 211, 238)', boxShadow: '0 0 8px rgba(34, 211, 238, 0.6)'} : {}} />
-                <span className="text-xs text-white/80">{isConnected ? 'Online' : 'Offline'}</span>
+                <div className={`w-2 h-2 rounded-full ${apiStatus.available ? 'pulse-slow' : 'bg-red-400'}`} style={apiStatus.available ? {backgroundColor: 'rgb(34, 211, 238)', boxShadow: '0 0 8px rgba(34, 211, 238, 0.6)'} : {}} />
+                <span className="text-xs text-white/80">{apiStatus.available ? 'Online' : 'Offline'}</span>
               </div>
               <div className="text-xs text-white/60">
-                WebSocket: {isConnected ? 'Conectado' : 'Desconectado'}
+                API: {apiStatus.available ? 'Conectada' : 'Desconectada'}
               </div>
               <div className="text-xs text-white/60">
-                Voice recognition: {isRecording ? 'Escuchando...' : 'Listo'}
+                Voice (STT): {apiStatus.stt ? 'Listo' : 'No disponible'}
               </div>
               <div className="text-xs text-white/60">
-                Aura Client: {isAuraReady ? 'Listo' : 'Inicializando...'}
+                Gemini: {apiStatus.gemini ? 'Listo' : 'No disponible'}
               </div>
               <div className="text-xs" style={{color: 'rgb(34, 211, 238)', textShadow: '0 0 8px rgba(34, 211, 238, 0.6)'}}>
                 {isProcessing ? 'Procesando texto...' : (isStreaming || isSpeaking) ? 'Hablando...' : 'Listo'}
@@ -630,10 +667,16 @@ const VoiceAssistant = () => {
                   <div className="text-xs p-2 rounded bg-white/5 border border-white/10" style={{wordWrap: 'break-word', overflowWrap: 'break-word', boxSizing: 'border-box', maxWidth: '100%'}}>
                     <div className="font-medium mb-1" style={{color: 'rgb(34, 211, 238)', textShadow: '0 0 8px rgba(34, 211, 238, 0.6)'}}>Estado</div>
                     <div className="text-white/70">
-                      {isConnected ? '✅ Conectado' : '❌ Desconectado'}
+                      {apiStatus.available ? '✅ API Conectada' : '❌ API Desconectada'}
                     </div>
                     <div className="text-white/70">
-                      Aura: {isAuraReady ? '✅ Listo' : '⏳ Inicializando...'}
+                      STT: {apiStatus.stt ? '✅ Listo' : '❌ No disponible'}
+                    </div>
+                    <div className="text-white/70">
+                      TTS: {apiStatus.tts ? '✅ Listo' : '❌ No disponible'}
+                    </div>
+                    <div className="text-white/70">
+                      Gemini: {apiStatus.gemini ? '✅ Listo' : '❌ No disponible'}
                     </div>
                   </div>
 
