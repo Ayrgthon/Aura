@@ -12,6 +12,8 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { useWeather } from '@/hooks/useWeather';
 import { toast } from 'sonner';
 import SystemStatsPanel from './SystemStatsPanel';
+import { useAudioRecorder } from '@/hooks/useAudioRecorder';
+import { uploadAudioToApi } from '@/utils/audioApi';
 
 const VoiceAssistant = () => {
   const [isListening, setIsListening] = useState(false);
@@ -200,6 +202,41 @@ const VoiceAssistant = () => {
   // Configurar Weather
   const { weatherData } = useWeather('Barranquilla');
 
+  // Configurar Audio Recorder
+  const {
+    isRecording,
+    recordedBlob,
+    startRecording,
+    stopRecording
+  } = useAudioRecorder({
+    onRecordingComplete: async (blob, mimeType) => {
+      console.log('✅ Grabación completada, enviando a API...');
+      setIsListening(false);
+      setIsProcessing(true);
+
+      try {
+        // Enviar automáticamente a la API
+        const result = await uploadAudioToApi(blob);
+        console.log('✅ Transcripción recibida:', result.transcription);
+
+        // Mostrar transcripción como texto reconocido
+        setLastRecognizedText(result.transcription || '');
+        toast.success('Audio transcrito correctamente');
+
+      } catch (error) {
+        console.error('❌ Error enviando audio:', error);
+        toast.error('Error al transcribir el audio');
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    onError: (errorMsg) => {
+      console.error('❌ Error en grabación:', errorMsg);
+      toast.error(errorMsg);
+      setIsListening(false);
+    }
+  });
+
   // Configurar WebSocket
   const { isConnected, sendMessage } = useWebSocket({
     onMessage: (message) => {
@@ -341,25 +378,27 @@ const VoiceAssistant = () => {
     fetchOllamaModels();
   }, []);
 
-  const toggleListening = () => {
-    if (!isConnected) {
-      toast.error('No hay conexión con el servidor');
-      return;
-    }
-
+  const toggleListening = async () => {
     console.log('🎤 Toggle listening - Estado actual:', isListening);
 
     if (isListening) {
-      // SEGUNDO CLICK: Detener escucha y enviar mensaje
-      console.log('🛑 Deteniendo escucha y enviando mensaje...');
-      sendMessage({ type: 'stop_listening' });
-      setLiveTranscription(''); // Limpiar transcripción en vivo
+      // SEGUNDO CLICK: Detener grabación y enviar a API
+      console.log('🛑 Deteniendo grabación y enviando a API...');
+      stopRecording();
+      // El envío a la API se hace automáticamente en onRecordingComplete
     } else {
-      // PRIMER CLICK: Iniciar escucha
-      console.log('🎤 Iniciando escucha...');
-      sendMessage({ type: 'start_listening' });
+      // PRIMER CLICK: Iniciar grabación
+      console.log('🎤 Iniciando grabación...');
       setLastRecognizedText(''); // Limpiar texto anterior
       setLastResponse(''); // Limpiar respuesta anterior
+
+      const success = await startRecording();
+      if (success) {
+        setIsListening(true);
+        toast.success('Grabación iniciada');
+      } else {
+        toast.error('No se pudo iniciar la grabación');
+      }
     }
   };
 
