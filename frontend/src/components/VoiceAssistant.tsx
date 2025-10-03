@@ -13,10 +13,9 @@ import { useWeather } from '@/hooks/useWeather';
 import { toast } from 'sonner';
 import SystemStatsPanel from './SystemStatsPanel';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
-import { uploadAudioToApi } from '@/utils/audioApi';
+import { processAudioComplete, playAudioFromBase64 } from '@/utils/audioApi';
 
 const VoiceAssistant = () => {
-  const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -210,22 +209,39 @@ const VoiceAssistant = () => {
     stopRecording
   } = useAudioRecorder({
     onRecordingComplete: async (blob, mimeType) => {
-      console.log('✅ Grabación completada, enviando a API...');
-      setIsListening(false);
+      console.log('✅ Grabación completada, procesando...');
       setIsProcessing(true);
 
       try {
-        // Enviar automáticamente a la API
-        const result = await uploadAudioToApi(blob);
-        console.log('✅ Transcripción recibida:', result.transcription);
+        // Procesar audio completo: transcripción + Gemini + TTS
+        const result = await processAudioComplete(blob);
 
-        // Mostrar transcripción como texto reconocido
-        setLastRecognizedText(result.transcription || '');
-        toast.success('Audio transcrito correctamente');
+        // Mostrar transcripción
+        setLastRecognizedText(result.transcription);
+        console.log('📝 Transcripción:', result.transcription);
+
+        // Mostrar respuesta de Gemini
+        setLastResponse(result.gemini_response);
+        console.log('🤖 Respuesta Gemini:', result.gemini_response);
+
+        toast.success('Procesamiento completo');
+
+        // Reproducir audio de respuesta
+        setIsSpeaking(true);
+        setIsStreaming(true);
+
+        playAudioFromBase64(result.audio_base64, result.audio_format);
+
+        // Simular que el audio está reproduciéndose
+        // (en una implementación real, deberías detectar cuando termina el audio)
+        setTimeout(() => {
+          setIsSpeaking(false);
+          setIsStreaming(false);
+        }, 5000); // Ajusta según la duración real del audio
 
       } catch (error) {
-        console.error('❌ Error enviando audio:', error);
-        toast.error('Error al transcribir el audio');
+        console.error('❌ Error procesando audio:', error);
+        toast.error('Error al procesar el audio');
       } finally {
         setIsProcessing(false);
       }
@@ -233,7 +249,6 @@ const VoiceAssistant = () => {
     onError: (errorMsg) => {
       console.error('❌ Error en grabación:', errorMsg);
       toast.error(errorMsg);
-      setIsListening(false);
     }
   });
 
@@ -379,9 +394,9 @@ const VoiceAssistant = () => {
   }, []);
 
   const toggleListening = async () => {
-    console.log('🎤 Toggle listening - Estado actual:', isListening);
+    console.log('🎤 Toggle listening - Estado actual isRecording:', isRecording);
 
-    if (isListening) {
+    if (isRecording) {
       // SEGUNDO CLICK: Detener grabación y enviar a API
       console.log('🛑 Deteniendo grabación y enviando a API...');
       stopRecording();
@@ -394,7 +409,6 @@ const VoiceAssistant = () => {
 
       const success = await startRecording();
       if (success) {
-        setIsListening(true);
         toast.success('Grabación iniciada');
       } else {
         toast.error('No se pudo iniciar la grabación');
@@ -475,7 +489,7 @@ const VoiceAssistant = () => {
                 WebSocket: {isConnected ? 'Conectado' : 'Desconectado'}
               </div>
               <div className="text-xs text-white/60">
-                Voice recognition: {isListening ? 'Escuchando...' : 'Listo'}
+                Voice recognition: {isRecording ? 'Escuchando...' : 'Listo'}
               </div>
               <div className="text-xs text-white/60">
                 Aura Client: {isAuraReady ? 'Listo' : 'Inicializando...'}
@@ -624,7 +638,7 @@ const VoiceAssistant = () => {
                   </div>
 
                   {/* Mostrar transcripción en vivo mientras escucha */}
-                  {isListening && liveTranscription && (
+                  {isRecording && liveTranscription && (
                     <div className="text-xs p-2 rounded bg-cyan-500/10 border border-cyan-500/30" style={{wordWrap: 'break-word', overflowWrap: 'break-word', boxSizing: 'border-box', maxWidth: '100%'}}>
                       <div className="text-cyan-400 font-medium mb-1 flex items-center gap-1">
                         <span className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></span>
@@ -839,7 +853,7 @@ const VoiceAssistant = () => {
         </div>
         {/* Central energy orb */}
         <div className="flex-1 flex items-center justify-center">
-          <EnergyOrb isListening={isListening} isSpeaking={isStreaming || isSpeaking} />
+          <EnergyOrb isListening={isRecording} isSpeaking={isStreaming || isSpeaking} />
         </div>
         {/* Bottom controls */}
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
@@ -853,7 +867,7 @@ const VoiceAssistant = () => {
             <div className="flex items-center gap-4">
               <Button 
                 size="lg" 
-                variant={isListening ? "destructive" : "default"} 
+                variant={isRecording ? "destructive" : "default"} 
                 onClick={toggleListening} 
                 className="rounded-full w-14 h-14 border-0 transition-all duration-500 transform-gpu hover:scale-110"
                 style={{
@@ -862,7 +876,7 @@ const VoiceAssistant = () => {
                   boxShadow: '0 12px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
                 }}
               >
-                {isListening ? (
+                {isRecording ? (
                   <MicOff className="w-5 h-5" style={{color: 'rgb(34, 211, 238)', filter: 'drop-shadow(0 0 8px rgba(34, 211, 238, 0.6))'}} />
                 ) : (
                   <Mic className="w-5 h-5" style={{color: 'rgb(34, 211, 238)', filter: 'drop-shadow(0 0 8px rgba(34, 211, 238, 0.6))'}} />
@@ -870,10 +884,10 @@ const VoiceAssistant = () => {
               </Button>
               <div className="text-center">
                 <div className="text-xs text-white/80">
-                  {isListening ? "Escuchando..." : (isStreaming || isSpeaking) ? "Hablando..." : "Presiona para hablar"}
+                  {isRecording ? "Escuchando..." : (isStreaming || isSpeaking) ? "Hablando..." : "Presiona para hablar"}
                 </div>
                 <div className="text-xs text-white/60 mt-1">
-                  {isListening ? "Presiona para ENVIAR mensaje" : "Presiona para INICIAR escucha"}
+                  {isRecording ? "Presiona para ENVIAR mensaje" : "Presiona para INICIAR escucha"}
                 </div>
               </div>
             </div>

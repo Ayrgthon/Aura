@@ -12,8 +12,9 @@ from datetime import datetime
 import logging
 import subprocess
 
-# Agregar path a la carpeta voice para importar hear.py
+# Agregar paths necesarios
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'voice'))
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'client'))
 
 # Configurar logging
 logging.basicConfig(
@@ -38,8 +39,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Importar SpeechToText desde voice/hear.py
+# Importar componentes del sistema
 from hear import SpeechToText
+from speak import TextToSpeech
+from gemini_client import SimpleGeminiClient
+from config import get_mcp_servers_config
+import asyncio
+import base64
+import tempfile
 
 # Crear carpeta para guardar audios si no existe
 AUDIO_FOLDER = "blueprint/recordings"
@@ -53,6 +60,42 @@ try:
 except Exception as e:
     logger.error(f"❌ Error inicializando Vosk: {e}")
     stt = None
+
+# Inicializar TTS
+logger.info("🔊 Inicializando TTS...")
+try:
+    tts = TextToSpeech(voice="en-US-EmmaMultilingualNeural")
+    logger.info("✅ TTS inicializado correctamente")
+except Exception as e:
+    logger.error(f"❌ Error inicializando TTS: {e}")
+    tts = None
+
+# Inicializar Gemini Client
+logger.info("🤖 Inicializando Gemini Client...")
+gemini_client = None
+try:
+    gemini_client = SimpleGeminiClient(model_name="gemini-2.5-flash", debug=True)
+
+    # Configurar servidores MCP
+    mcp_config = get_mcp_servers_config()
+    if mcp_config:
+        logger.info(f"🛠️ Configurando {len(mcp_config)} servidores MCP...")
+        # Crear event loop para async setup
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        success = loop.run_until_complete(gemini_client.setup_mcp_servers(mcp_config))
+        loop.close()
+
+        if success:
+            logger.info("✅ Gemini Client y MCP configurados correctamente")
+        else:
+            logger.warning("⚠️ Algunos servidores MCP fallaron")
+    else:
+        logger.info("✅ Gemini Client inicializado (sin MCP)")
+
+except Exception as e:
+    logger.error(f"❌ Error inicializando Gemini: {e}")
+    gemini_client = None
 
 
 def convert_audio_to_wav(input_path: str, output_path: str) -> bool:
@@ -228,6 +271,154 @@ async def upload_audio(audio: UploadFile = File(...)):
                 logger.info(f"🗑️ Archivo temporal eliminado: {wav_temp_path}")
             except Exception as e:
                 logger.warning(f"⚠️ No se pudo eliminar archivo temporal: {e}")
+
+
+@app.post("/process-audio")
+async def process_audio(audio: UploadFile = File(...)):
+    """
+    Endpoint completo: Recibe audio → Transcribe → Procesa con Gemini → Genera TTS → Retorna todo
+
+    Args:
+        audio: Archivo de audio (webm, mp4, wav, etc.)
+
+    Returns:
+        JSON con transcripción, respuesta de texto y audio en base64
+    """
+    wav_temp_path = None
+    tts_temp_path = None
+
+    try:
+        logger.info("=" * 80)
+        logger.info("🚀 INICIO DE PROCESO COMPLETO")
+        logger.info("=" * 80)
+
+        # === PASO 1: RECIBIR Y GUARDAR AUDIO ===
+        logger.info("📥 PASO 1: Recibiendo archivo de audio...")
+        audio_data = await audio.read()
+        audio_size = len(audio_data)
+        logger.info(f"📦 Tamaño: {audio_size} bytes ({audio_size / 1024:.2f} KB)")
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        extension_map = {
+            "audio/webm": "webm",
+            "audio/webm;codecs=opus": "webm",
+            "audio/ogg": "ogg",
+            "audio/mp4": "mp4",
+            "audio/wav": "wav",
+            "audio/mpeg": "mp3"
+        }
+
+        extension = extension_map.get(audio.content_type, "webm")
+        filename = f"recording_{timestamp}.{extension}"
+        filepath = os.path.join(AUDIO_FOLDER, filename)
+
+        with open(filepath, "wb") as f:
+            f.write(audio_data)
+        logger.info(f"✅ PASO 1 COMPLETO: Archivo guardado en {filepath}")
+
+        # === PASO 2: TRANSCRIBIR CON VOSK ===
+        logger.info("📝 PASO 2: Transcribiendo audio con Vosk...")
+        transcription = None
+
+        if not stt:
+            raise Exception("Vosk STT no está inicializado")
+
+        wav_temp_path = os.path.join(AUDIO_FOLDER, f"temp_{timestamp}.wav")
+
+        if extension != "wav":
+            if not convert_audio_to_wav(filepath, wav_temp_path):
+                raise Exception("No se pudo convertir audio a WAV")
+            transcription = stt.transcribe_audio_file(wav_temp_path)
+        else:
+            transcription = stt.transcribe_audio_file(filepath)
+
+        logger.info(f"✅ PASO 2 COMPLETO: Transcripción: '{transcription}'")
+
+        if not transcription or not transcription.strip():
+            raise Exception("Transcripción vacía")
+
+        # === PASO 3: PROCESAR CON GEMINI ===
+        logger.info("🤖 PASO 3: Procesando con Gemini...")
+
+        if not gemini_client:
+            raise Exception("Gemini Client no está inicializado")
+
+        # Usar await directamente ya que estamos en una función async
+        gemini_response = await gemini_client.chat(transcription)
+
+        logger.info(f"✅ PASO 3 COMPLETO: Respuesta Gemini: '{gemini_response[:100]}...'")
+
+        if not gemini_response or not gemini_response.strip():
+            raise Exception("Respuesta de Gemini vacía")
+
+        # === PASO 4: GENERAR AUDIO CON TTS ===
+        logger.info("🔊 PASO 4: Generando audio con TTS...")
+
+        if not tts:
+            raise Exception("TTS no está inicializado")
+
+        # Crear archivo temporal para el audio TTS
+        tts_temp_path = os.path.join(AUDIO_FOLDER, f"tts_{timestamp}.mp3")
+
+        # Generar audio usando edge-tts directamente (async)
+        import edge_tts
+        communicate = edge_tts.Communicate(gemini_response, tts.voice, rate="+0%")
+        await communicate.save(tts_temp_path)
+
+        if not os.path.exists(tts_temp_path):
+            raise Exception("No se pudo generar audio TTS")
+
+        logger.info(f"✅ PASO 4 COMPLETO: Audio TTS generado en {tts_temp_path}")
+
+        # === PASO 5: CONVERTIR AUDIO A BASE64 ===
+        logger.info("📦 PASO 5: Convirtiendo audio a base64...")
+
+        with open(tts_temp_path, "rb") as audio_file:
+            audio_base64 = base64.b64encode(audio_file.read()).decode('utf-8')
+
+        audio_size_kb = len(audio_base64) / 1024
+        logger.info(f"✅ PASO 5 COMPLETO: Audio base64 generado ({audio_size_kb:.2f} KB)")
+
+        # === PASO 6: RETORNAR RESPUESTA COMPLETA ===
+        logger.info("✅ PROCESO COMPLETO EXITOSO")
+        logger.info("=" * 80)
+
+        response_data = {
+            "success": True,
+            "message": "Audio procesado completamente",
+            "transcription": transcription,
+            "gemini_response": gemini_response,
+            "audio_base64": audio_base64,
+            "audio_format": "mp3",
+            "processing_time": "< 1s"  # Puedes agregar tracking de tiempo si quieres
+        }
+
+        return JSONResponse(status_code=200, content=response_data)
+
+    except Exception as e:
+        logger.error("=" * 80)
+        logger.error(f"❌ ERROR EN PROCESO: {str(e)}")
+        logger.error("=" * 80)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error procesando audio: {str(e)}"
+        )
+
+    finally:
+        # Limpiar archivos temporales
+        if wav_temp_path and os.path.exists(wav_temp_path):
+            try:
+                os.remove(wav_temp_path)
+                logger.info(f"🗑️ Archivo WAV temporal eliminado")
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo eliminar WAV temporal: {e}")
+
+        if tts_temp_path and os.path.exists(tts_temp_path):
+            try:
+                os.remove(tts_temp_path)
+                logger.info(f"🗑️ Archivo TTS temporal eliminado")
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo eliminar TTS temporal: {e}")
 
 
 if __name__ == "__main__":
